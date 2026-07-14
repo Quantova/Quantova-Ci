@@ -1,0 +1,45 @@
+name: rust-ci
+
+# Reusable pipeline imported by every repo:
+#   jobs:
+#     ci:
+#       uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@main
+# No repo merges while this is red.
+
+on:
+  workflow_call:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Rust project
+        id: guard
+        run: |
+          if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.guard.outputs.rust == 'true'
+        with:
+          components: rustfmt, clippy
+      - name: fmt
+        if: steps.guard.outputs.rust == 'true'
+        run: cargo fmt --all -- --check
+      - name: clippy (deny warnings)
+        if: steps.guard.outputs.rust == 'true'
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: test
+        if: steps.guard.outputs.rust == 'true'
+        run: cargo test --all-features
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Classical-crypto dependency gate
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check bans licenses sources advisories
