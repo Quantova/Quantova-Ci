@@ -1,0 +1,35 @@
+name: release
+
+# Reusable release gate imported by every repo that ships a binary:
+#   jobs:
+#     release:
+#       uses: Quantova/Quantova-Ci/.github/workflows/release.yml@main
+# Layer 2 of PQ independence: scans compiled binaries for classical-crypto signatures that no
+# dependency scan can see (vendored or hand-written classical code).
+
+on:
+  workflow_call:
+
+jobs:
+  symbol-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build release
+        run: cargo build --release --all-features
+      - name: Classical-crypto symbol scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Signatures of classical primitives. Hardened over time by qtov-ci-gatekeeper
+          # (curve constants, EC field primes, RSA mod-exp patterns).
+          patterns='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254|EC_POINT|BN_mod_exp|RSA_'
+          fail=0
+          while IFS= read -r bin; do
+            if strings "$bin" | grep -Eiq "$patterns"; then
+              echo "::error file=$bin::classical-crypto symbol signature detected in $bin"
+              fail=1
+            fi
+          done < <(find target/release -maxdepth 1 -type f -perm -u+x)
+          exit "$fail"
