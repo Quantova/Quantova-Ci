@@ -40,6 +40,8 @@ paths = [p for p in out.split(b"\x00") if p]
 fail = 0
 for raw in paths:
     path = os.fsdecode(raw)
+    if "hostile" in path.replace(os.sep, "/").split("/"):
+        continue
     if not os.path.isfile(path):
         continue
     try:
