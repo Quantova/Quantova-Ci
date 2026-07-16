@@ -44,6 +44,191 @@ jobs:
         with:
           command: check bans licenses sources advisories
 
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cross repo pin agreement gate
+        shell: bash
+        env:
+          QTOV_PINS_FILE: cross-repo-pins
+          QTOV_LOCK_FILE: Cargo.lock
+        run: |
+          set -euo pipefail
+
+          # For each cross repo git dependency, the declared pin, the committed
+          # lockfile commit, and the remote peeled tag must agree. This job carries
+          # its own copy of the checker so the reusable workflow needs nothing from
+          # the consuming repository beyond its cross-repo-pins and Cargo.lock.
+          # It peels the live remote with git ls-remote. A repository with no
+          # cross-repo-pins file exits zero and is left alone.
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+
+          pins_path = os.environ["QTOV_PINS_FILE"]
+          lock_path = os.environ["QTOV_LOCK_FILE"]
+          fixture_path = os.environ.get("QTOV_PIN_PEEL_FIXTURE")
+
+          DEFAULT_OWNER = "Quantova"
+
+
+          def die(msg):
+              sys.stderr.write("pin-agreement: %s\n" % msg)
+              sys.exit(1)
+
+
+          def repo_name(value):
+              value = value.strip()
+              value = re.sub(r"^git\+", "", value)
+              value = value.split("?", 1)[0]
+              value = re.sub(r"\.git$", "", value)
+              return value.rstrip("/").rsplit("/", 1)[-1].lower()
+
+
+          def owner_slug(declared_repo):
+              declared_repo = declared_repo.strip().rstrip("/")
+              if "/" in declared_repo:
+                  return declared_repo
+              return "%s/%s" % (DEFAULT_OWNER, declared_repo)
+
+
+          if not os.path.isfile(pins_path):
+              sys.exit(0)
+
+          declared = []
+          seen = set()
+          with open(pins_path, encoding="utf-8") as fh:
+              for lineno, raw in enumerate(fh, start=1):
+                  line = raw.strip()
+                  if not line or line.startswith("#"):
+                      continue
+                  parts = line.split()
+                  if len(parts) != 2:
+                      die("%s:%d expected `repository tag`, found %r" % (pins_path, lineno, line))
+                  repo, tag = parts
+                  key = repo_name(repo)
+                  if key in seen:
+                      die("%s:%d repository %s declared twice" % (pins_path, lineno, repo))
+                  seen.add(key)
+                  declared.append((repo, tag))
+
+          if not declared:
+              sys.exit(0)
+
+          if not os.path.isfile(lock_path):
+              die("%s declares pins but %s is missing" % (pins_path, lock_path))
+
+          resolved = {}
+          source_re = re.compile(r'source = "git\+([^"]+)"')
+          with open(lock_path, encoding="utf-8") as fh:
+              lock_text = fh.read()
+          for m in source_re.finditer(lock_text):
+              src = m.group(1)
+              tag_m = re.search(r"[?&]tag=([^&#]+)", src)
+              commit_m = re.search(r"#([0-9a-fA-F]{7,40})$", src)
+              if not tag_m or not commit_m:
+                  continue
+              key = repo_name(src)
+              entry = (tag_m.group(1), commit_m.group(1).lower())
+              resolved.setdefault(key, set()).add(entry)
+
+          peel_fixture = None
+          if fixture_path is not None:
+              peel_fixture = {}
+              with open(fixture_path, encoding="utf-8") as fh:
+                  for lineno, raw in enumerate(fh, start=1):
+                      line = raw.strip()
+                      if not line or line.startswith("#"):
+                          continue
+                      parts = line.split()
+                      if len(parts) != 3:
+                          die("%s:%d expected `repository tag commit`" % (fixture_path, lineno))
+                      repo, tag, commit = parts
+                      peel_fixture[(repo_name(repo), tag)] = commit.lower()
+
+
+          def peel_remote(declared_repo, tag):
+              if peel_fixture is not None:
+                  commit = peel_fixture.get((repo_name(declared_repo), tag))
+                  if commit is None:
+                      die("peel fixture has no entry for %s %s" % (declared_repo, tag))
+                  return commit
+              url = "https://github.com/%s.git" % owner_slug(declared_repo)
+              out = subprocess.run(
+                  ["git", "ls-remote", url, "refs/tags/%s" % tag, "refs/tags/%s^{}" % tag],
+                  capture_output=True,
+                  text=True,
+              )
+              if out.returncode != 0:
+                  die("git ls-remote failed for %s %s: %s" % (declared_repo, tag, out.stderr.strip()))
+              plain = None
+              peeled = None
+              for row in out.stdout.splitlines():
+                  sha, _, ref = row.partition("\t")
+                  if ref.endswith("^{}"):
+                      peeled = sha.strip().lower()
+                  elif ref:
+                      plain = sha.strip().lower()
+              commit = peeled or plain
+              if commit is None:
+                  die("remote has no tag %s in %s" % (tag, declared_repo))
+              return commit
+
+
+          def short(commit):
+              return commit[:12] if commit else commit
+
+
+          failures = 0
+          for declared_repo, declared_tag in declared:
+              key = repo_name(declared_repo)
+              entries = resolved.get(key)
+              if not entries:
+                  sys.stderr.write(
+                      "pin-agreement: %s: declared at %s but no git dependency on it is present in %s\n"
+                      % (declared_repo, declared_tag, lock_path)
+                  )
+                  failures += 1
+                  continue
+              if len(entries) > 1:
+                  joined = ", ".join("%s at %s" % (t, short(c)) for t, c in sorted(entries))
+                  sys.stderr.write(
+                      "pin-agreement: %s: lockfile resolves it to more than one pin: %s\n"
+                      % (declared_repo, joined)
+                  )
+                  failures += 1
+                  continue
+              lock_tag, lock_commit = next(iter(entries))
+              remote_commit = peel_remote(declared_repo, declared_tag)
+
+              tag_ok = lock_tag == declared_tag
+              commit_ok = lock_commit == remote_commit
+              if tag_ok and commit_ok:
+                  continue
+
+              failures += 1
+              if not tag_ok:
+                  reason = "declared tag and lockfile tag disagree"
+              else:
+                  reason = "lockfile commit and remote peeled commit disagree"
+              sys.stderr.write("pin-agreement: %s: %s\n" % (declared_repo, reason))
+              sys.stderr.write("  declared tag:         %s\n" % declared_tag)
+              sys.stderr.write("  lockfile tag:         %s\n" % lock_tag)
+              sys.stderr.write("  lockfile commit:      %s\n" % lock_commit)
+              sys.stderr.write("  remote peeled commit: %s\n" % remote_commit)
+
+          sys.exit(1 if failures else 0)
+          PY
+
+  pins-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin agreement self test
+        if: ${{ hashFiles('fixtures/pin-agreement/agree/cross-repo-pins') != '' }}
+        shell: bash
+        run: bash scripts/pin-agreement-selftest.sh
+
   emoji:
     runs-on: ubuntu-latest
     steps:
