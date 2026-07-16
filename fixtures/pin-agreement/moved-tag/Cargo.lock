@@ -1,0 +1,19 @@
+version = 3
+
+[[package]]
+name = "qtv-node"
+version = "0.1.0"
+dependencies = [
+ "qtv-bft",
+ "qtv-stark",
+]
+
+[[package]]
+name = "qtv-bft"
+version = "0.1.0"
+source = "git+https://github.com/Quantova/QRC-CONSENSUS.git?tag=v0.4.0#e16fbd6a890f1c72a4c548e41ff296d64e0af5dc"
+
+[[package]]
+name = "qtv-stark"
+version = "0.1.0"
+source = "git+https://github.com/Quantova/q-prover.git?tag=v0.8.0#b1984582cb4b242568bb344018ca01770dd5f31d"

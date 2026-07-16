@@ -1,0 +1,6 @@
+# Stubbed remote peel for the hermetic self test: repository, tag, peeled commit.
+# The real run peels the live remote with git ls-remote instead of reading this file.
+# Here the QRC-CONSENSUS tag has been re-pointed at the remote, so its peeled commit
+# no longer matches the commit the committed lockfile resolved to.
+QRC-CONSENSUS  v0.4.0  4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e
+q-prover       v0.8.0  b1984582cb4b242568bb344018ca01770dd5f31d
