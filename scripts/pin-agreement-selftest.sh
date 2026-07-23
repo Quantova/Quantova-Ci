@@ -54,6 +54,16 @@ case "$out" in
   *) report 1 "regenerated-lock names the dependency (got: $out)" ;;
 esac
 
+# no-pins: a lockfile with tag pinned cross repo git dependencies but no declaration must
+# fail closed rather than pass unpoliced.
+out="$("$checker" "$fixtures/no-pins" 2>&1)"
+code=$?
+if [ "$code" != "0" ]; then report 0 "no-pins fails closed"; else report 1 "no-pins fails closed (got $code)"; fi
+case "$out" in
+  *cross-repo-pins*) report 0 "no-pins names the missing declaration" ;;
+  *) report 1 "no-pins names the missing declaration (got: $out)" ;;
+esac
+
 if [ "$fail" = "0" ]; then
   echo "pin-agreement self test passed"
 else

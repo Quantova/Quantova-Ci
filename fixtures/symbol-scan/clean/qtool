@@ -1,0 +1,3 @@
+#!/bin/sh
+# a stand in build output that carries only Quantova post quantum symbols
+echo "qtv ml-dsa shake256 dilithium"

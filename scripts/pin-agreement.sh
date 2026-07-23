@@ -63,8 +63,23 @@ def owner_slug(declared_repo):
     return "%s/%s" % (DEFAULT_OWNER, declared_repo)
 
 
+def tagged_git_sources(text):
+    found = []
+    for m in re.finditer(r'source = "git\+([^"]+)"', text):
+        src = m.group(1)
+        if re.search(r"[?&]tag=[^&#]+", src) and re.search(r"#[0-9a-fA-F]{7,40}$", src):
+            found.append(src)
+    return found
+
+
 if not os.path.isfile(pins_path):
-    # No declaration means no cross repo pins to police in this repository.
+    # A repository with tag pinned cross repo git dependencies must declare them so the
+    # three way agreement can be checked; missing the declaration fails closed rather than
+    # leaving those pins unpoliced.
+    if os.path.isfile(lock_path):
+        with open(lock_path, encoding="utf-8") as fh:
+            if tagged_git_sources(fh.read()):
+                die("%s has tag pinned cross repo git dependencies but no %s" % (lock_path, pins_path))
     sys.exit(0)
 
 # Read the declaration: one dependency per line, two whitespace separated fields,

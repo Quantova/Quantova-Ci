@@ -1,0 +1,13 @@
+version = 3
+
+[[package]]
+name = "qtv-node"
+version = "0.1.0"
+dependencies = [
+ "qtv-bft",
+]
+
+[[package]]
+name = "qtv-bft"
+version = "0.1.0"
+source = "git+https://github.com/Quantova/QRC-CONSENSUS.git?tag=v0.4.0#e16fbd6a890f1c72a4c548e41ff296d64e0af5dc"

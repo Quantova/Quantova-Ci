@@ -15,14 +15,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Detect Rust project
         id: guard
         run: |
           if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         if: steps.guard.outputs.rust == 'true'
         with:
+          toolchain: stable
           components: rustfmt, clippy
       - name: fmt
         if: steps.guard.outputs.rust == 'true'
@@ -34,20 +35,74 @@ jobs:
         if: steps.guard.outputs.rust == 'true'
         run: cargo test --all-features
 
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Detect Rust project
+        id: guard
+        run: |
+          if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        if: steps.guard.outputs.rust == 'true'
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - name: Install cargo llvm-cov
+        if: steps.guard.outputs.rust == 'true'
+        run: cargo install cargo-llvm-cov --version 0.8.7 --locked
+      - name: Coverage gate
+        if: steps.guard.outputs.rust == 'true'
+        # Line coverage below this floor fails the build. Raising or lowering it is
+        # a deliberate, reviewable change to this file, the same way a cross repo
+        # pin only moves in a reviewable commit. cargo-llvm-cov instruments the same
+        # test run the check job already runs, so this measures the real test suite
+        # rather than a separate one written to hit a number.
+        run: cargo llvm-cov --all-features --workspace --fail-under-lines 70
+
   deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Classical-crypto dependency gate
         if: ${{ hashFiles('Cargo.toml') != '' }}
-        uses: EmbarkStudios/cargo-deny-action@v2
+        uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb # v2.1.1
         with:
           command: check bans licenses sources advisories
+
+  symbol-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        with:
+          toolchain: stable
+      - name: Build release
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        run: cargo build --release --all-features
+      - name: Classical-crypto symbol scan
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Layer 2 of PQ independence. Signatures of classical primitives, carried inline so the
+          # reusable workflow needs nothing from the consuming repository. A repo that ships no
+          # executable has nothing to scan and passes.
+          patterns='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254|EC_POINT|BN_mod_exp|RSA_'
+          fail=0
+          while IFS= read -r bin; do
+            if strings "$bin" | grep -Eiq "$patterns"; then
+              echo "::error file=$bin::classical-crypto symbol signature detected in $bin"
+              fail=1
+            fi
+          done < <(find target/release -maxdepth 1 -type f -perm -u+x)
+          exit "$fail"
 
   pins:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Cross repo pin agreement gate
         shell: bash
         env:
@@ -92,7 +147,20 @@ jobs:
               return "%s/%s" % (DEFAULT_OWNER, declared_repo)
 
 
+          def tagged_git_sources(text):
+              found = []
+              for m in re.finditer(r'source = "git\+([^"]+)"', text):
+                  src = m.group(1)
+                  if re.search(r"[?&]tag=[^&#]+", src) and re.search(r"#[0-9a-fA-F]{7,40}$", src):
+                      found.append(src)
+              return found
+
+
           if not os.path.isfile(pins_path):
+              if os.path.isfile(lock_path):
+                  with open(lock_path, encoding="utf-8") as fh:
+                      if tagged_git_sources(fh.read()):
+                          die("%s has tag pinned cross repo git dependencies but no %s" % (lock_path, pins_path))
               sys.exit(0)
 
           declared = []
@@ -223,16 +291,25 @@ jobs:
   pins-selftest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Pin agreement self test
         if: ${{ hashFiles('fixtures/pin-agreement/agree/cross-repo-pins') != '' }}
         shell: bash
         run: bash scripts/pin-agreement-selftest.sh
 
+  symbol-scan-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Symbol scan self test
+        if: ${{ hashFiles('fixtures/symbol-scan/dirty/qtool') != '' }}
+        shell: bash
+        run: bash scripts/symbol-scan-selftest.sh
+
   emoji:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Pictographic code point lint
         shell: bash
         run: |
@@ -284,7 +361,7 @@ jobs:
   idfmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Identifier format lint
         shell: bash
         run: |

@@ -1,0 +1,3 @@
+#!/bin/sh
+# a stand in build output that carries a classical curve symbol
+echo "vendored ed25519 routine"
