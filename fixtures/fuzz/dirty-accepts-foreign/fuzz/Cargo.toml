@@ -1,0 +1,21 @@
+[package]
+name = "dirty-accepts-foreign-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.dirty-accepts-foreign]
+path = ".."
+
+[[bin]]
+name = "airlock"
+path = "fuzz_targets/airlock.rs"
+test = false
+doc = false
+bench = false

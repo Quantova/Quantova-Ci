@@ -1,0 +1,11 @@
+[package]
+name = "dirty-panics"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Deliberately broken fixture proving the fuzz gate fires when a parser panics on attacker controlled length. Not production code."
+
+[lib]
+name = "dirty_panics"
+
+[dependencies]
