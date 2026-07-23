@@ -1,0 +1,11 @@
+[package]
+name = "dirty-accepts-foreign"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Deliberately broken fixture proving the fuzz gate fires when a parser wrongly accepts a foreign artifact. Not production code."
+
+[lib]
+name = "dirty_accepts_foreign"
+
+[dependencies]
