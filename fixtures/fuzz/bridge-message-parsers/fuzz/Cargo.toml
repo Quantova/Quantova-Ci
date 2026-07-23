@@ -1,0 +1,28 @@
+[package]
+name = "bridge-message-parsers-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.bridge-message-parsers]
+path = ".."
+
+[[bin]]
+name = "airlock"
+path = "fuzz_targets/airlock.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oracle_message"
+path = "fuzz_targets/oracle_message.rs"
+test = false
+doc = false
+bench = false
