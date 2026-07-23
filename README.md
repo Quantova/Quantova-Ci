@@ -22,6 +22,14 @@ jobs:
     uses: Quantova/Quantova-Ci/.github/workflows/release.yml@main
 ```
 
+The repository that implements the bridge Airlock and the repository that implements the Q-Oracle message parser also import the fuzz gate.
+
+```yaml
+jobs:
+  fuzz:
+    uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@main
+```
+
 No repository merges while these are red.
 
 ## The gates
@@ -36,7 +44,15 @@ Layer two catches what a dependency scan cannot see, classical code that was ven
 
 ### Cross repo pin agreement
 
-A tag and a running build must never disagree. For every cross repo git dependency of a binary the gate reads three facts and asserts they agree, the declared pin from the committed `cross-repo-pins` file, the commit the committed `Cargo.lock` resolved to, and the commit the remote tag actually points to, peeled with `git ls-remote`. A tag re pointed at the remote, or a lockfile regenerated against a different commit, breaks agreement and turns the build red with all three values named. A hermetic self test, `scripts/pin-agreement-selftest.sh`, drives the checker over the fixtures in `fixtures/pin-agreement`, an agreeing tree, a moved tag, and a regenerated lockfile, so the gate is proven to fire and not only to pass.
+A tag and a running build must never disagree. For every cross repo git dependency of a binary the gate reads three facts and asserts they agree, the declared pin from the committed `cross-repo-pins` file, the commit the committed `Cargo.lock` resolved to, and the commit the remote tag actually points to, peeled with `git ls-remote`. A tag re pointed at the remote, or a lockfile regenerated against a different commit, breaks agreement and turns the build red with all three values named. The `pins` job in the shared pipeline runs it on every push and pull request, and the `pin-agreement` job in the release gate runs the same check again so a release cannot go out on a pin that moved since the last ordinary run. A hermetic self test, `scripts/pin-agreement-selftest.sh`, drives the checker over the fixtures in `fixtures/pin-agreement`, an agreeing tree, a moved tag, and a regenerated lockfile, so the gate is proven to fire and not only to pass.
+
+### Fuzz gate
+
+An Airlock submission arrives from a foreign chain, a Q-Oracle report arrives from off chain, and both cross a trust boundary an ordinary test suite does not probe. A fuzz target for each parser is held to two properties against random and mutated input, it never panics, and it rejects every artifact that does not open with its own Quantova header. `fixtures/fuzz/bridge-message-parsers` is the pattern a fuzz target follows, and `docs/fuzz.md` records how a repository adopts the gate. Two more fixtures, `dirty-accepts-foreign` and `dirty-panics`, each carry one deliberately broken parser and a committed regression input, and `scripts/fuzz-selftest.sh`, wired into the shared pipeline as the `fuzz-selftest` job, proves the gate turns red on both before it is trusted to pass a clean parser.
+
+### Coverage gate
+
+fmt, clippy, and a passing test suite still leave room for a function no test ever calls. The `coverage` job runs `cargo llvm-cov` over the same test run the `check` job exercises and fails the build under 70 percent line coverage. `docs/coverage-proof.md` records the gate firing under the floor and passing at it.
 
 ### Content lints
 
@@ -49,9 +65,13 @@ Two scanners run over the tracked files of every repository.
 
 `lints.toml` records the organization wide Rust and Clippy policy that repositories inherit. Unsafe code is denied, the Clippy lint set is denied as warnings, and floating point arithmetic is denied on the consensus, gas, and state paths where determinism is load bearing.
 
+### Action pins
+
+Every action every workflow here uses resolves by commit hash, never a tag or a branch. A tag can be repointed at the remote after it has been reviewed and trusted, the same drift the pin agreement gate exists to catch in a dependency, so the actions this pipeline runs on are held to the same standard. `dtolnay/rust-toolchain` is pinned to a commit on its `master` branch with the toolchain named explicitly through its `toolchain` input, rather than to one of its channel branches, since those branches are the moving part by design. Bumping any pin is a deliberate, reviewable change to the workflow file that carries it.
+
 ## Proof over assertion
 
-A gate that has never fired is not yet a gate. The `docs` directory records that each one fires on a real violation and passes on a clean tree, with the exact commands to reproduce. `docs/gate-proof.md` for the deny gate, `docs/lint-proofs.md` for the two content lints, and `docs/pin-agreement.md` for the pin agreement gate.
+A gate that has never fired is not yet a gate. The `docs` directory records that each one fires on a real violation and passes on a clean tree, with the exact commands to reproduce. `docs/gate-proof.md` for the deny gate, `docs/lint-proofs.md` for the two content lints, `docs/pin-agreement.md` for the pin agreement gate, `docs/fuzz.md` for the fuzz gate, and `docs/coverage-proof.md` for the coverage gate.
 
 ## Governance and license
 

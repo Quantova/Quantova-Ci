@@ -1,0 +1,11 @@
+[package]
+name = "bridge-message-parsers"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Fixture parsers the fuzz gate is proven against. Not the production Airlock or Q-Oracle message format, which live in the repositories that implement the bridge and Q-Oracle."
+
+[lib]
+name = "bridge_message_parsers"
+
+[dependencies]

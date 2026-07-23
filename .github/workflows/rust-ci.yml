@@ -306,6 +306,22 @@ jobs:
         shell: bash
         run: bash scripts/symbol-scan-selftest.sh
 
+  fuzz-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        if: ${{ hashFiles('fixtures/fuzz/bridge-message-parsers/fuzz/fuzz_targets/airlock.rs') != '' }}
+        with:
+          toolchain: nightly
+      - name: Install cargo fuzz
+        if: ${{ hashFiles('fixtures/fuzz/bridge-message-parsers/fuzz/fuzz_targets/airlock.rs') != '' }}
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Fuzz gate self test
+        if: ${{ hashFiles('fixtures/fuzz/bridge-message-parsers/fuzz/fuzz_targets/airlock.rs') != '' }}
+        shell: bash
+        run: bash scripts/fuzz-selftest.sh
+
   emoji:
     runs-on: ubuntu-latest
     steps:
