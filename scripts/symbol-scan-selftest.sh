@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Self test for the classical-crypto symbol scan.
 #
 # Two fixtures under fixtures/symbol-scan, each a directory holding one executable:

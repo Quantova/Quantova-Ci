@@ -1,4 +1,7 @@
 #![no_main]
+// Copyright 2026 Quantova Inc
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 
 use bridge_message_parsers::parse_airlock_message;
 use libfuzzer_sys::fuzz_target;

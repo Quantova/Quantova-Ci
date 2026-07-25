@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Classical-crypto symbol scan (layer 2 of PQ independence). Run against a build output directory.
 # Usage: scripts/symbol-scan.sh <dir>
 # Exits non-zero if any executable carries a classical-crypto symbol signature.

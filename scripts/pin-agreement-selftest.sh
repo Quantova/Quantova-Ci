@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Self test for the cross repo pin agreement check.
 #
 # Three fixtures under fixtures/pin-agreement, each a declaration, a lockfile, and a

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Cross repo pin agreement check.
 #
 # For every cross repo git dependency of a binary, three facts must agree:

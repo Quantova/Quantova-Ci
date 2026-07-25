@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Self test for the fuzz gate.
 #
 # Three fixtures under fixtures/fuzz prove the two properties every fuzz

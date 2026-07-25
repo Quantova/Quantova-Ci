@@ -1,4 +1,7 @@
 #![no_main]
+// Copyright 2026 Quantova Inc
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 
 use dirty_accepts_foreign::parse_airlock_message;
 use libfuzzer_sys::fuzz_target;

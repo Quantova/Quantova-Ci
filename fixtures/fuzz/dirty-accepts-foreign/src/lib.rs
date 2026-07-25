@@ -1,3 +1,6 @@
+// Copyright 2026 Quantova Inc
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Deliberately broken fixture proving the fuzz gate fires.
 //!
 //! This is a copy of the Airlock parser fixture in

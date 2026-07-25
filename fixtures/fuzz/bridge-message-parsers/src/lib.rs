@@ -1,3 +1,6 @@
+// Copyright 2026 Quantova Inc
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Fixture message parsers the fuzz gate is proven against.
 //!
 //! This is not the production Airlock or Q-Oracle message format. Those live in

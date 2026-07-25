@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Identifier format scan over tracked files.
 # Reports and exits nonzero when a tracked file renders 0x and then six or more
 # hexadecimal characters, the shape of an Ethereum hash or address value.

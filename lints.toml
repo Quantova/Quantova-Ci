@@ -1,3 +1,6 @@
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # Organization-wide lint policy. CI applies `-D warnings`; this file records the standing rules the
 # gatekeeper enforces and repos inherit into their workspace `[lints]` table.
 
