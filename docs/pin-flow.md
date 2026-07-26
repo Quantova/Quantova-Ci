@@ -14,10 +14,10 @@ graph TD
     QCOREJS["QCore.js<br/>consumer"]
     QCORERS["QCore.rs<br/>consumer"]
     QUANTA["Quanta-Smart-Contract-language<br/>consumer"]
-    CHAIN["Quantova-Chain<br/>v0.9.0, integration point"]
+    CHAIN["Quantova-Chain<br/>v0.10.0, integration point"]
     BENCH["Quantova-Bench<br/>leaf, pins the whole set"]
     CONF["Quantova-Conformance<br/>consumer"]
-    ORACLE["Q-Oracle<br/>airlock, no tag"]
+    ORACLE["Q-Oracle<br/>v0.1.0, airlock leaf"]
 
     QCRYPTO -->|rev 4c0bdcb| QVM
     QCRYPTO -->|rev 4c0bdcb| QRC
@@ -37,8 +37,8 @@ graph TD
     QRC -->|v0.9.0| CHAIN
     QRC -->|v0.9.0| BENCH
 
-    CHAIN -->|v0.9.0| BENCH
-    CHAIN -->|v0.9.0| CONF
+    CHAIN -->|v0.10.0| BENCH
+    CHAIN -->|v0.10.0| CONF
 
     classDef root fill:#0b3d2e,stroke:#0b3d2e,color:#ffffff
     classDef integ fill:#1f4e79,stroke:#1f4e79,color:#ffffff
@@ -58,11 +58,11 @@ QVM publishes v0.5.3, the secured virtual machine that runs contract code inside
 
 QRC-CONSENSUS publishes v0.9.0, the QORUS committee consensus that decides which blocks become final. The node pins this exact version so that every validator agrees on the same voting and attestation rules, including the chain identifier that is folded into every attestation.
 
-Quantova-Chain publishes v0.9.0, the node and the ledger, the piece that brings the cryptography, the virtual machine, and the consensus together into one running program. It is the integration point, so the benchmark suite and the conformance runner both pin this exact version and measure and test the real node rather than a loose collection of parts.
+Quantova-Chain publishes v0.10.0, the node and the ledger, the piece that brings the cryptography, the virtual machine, and the consensus together into one running program. It is the integration point, so the benchmark suite and the conformance runner both pin this exact version and measure and test the real node rather than a loose collection of parts.
 
 q-prover publishes v0.8.0, the hash based STARK prover. It is a leaf, which means it pins the cryptography root but nothing in the core stack pins it back, so it can move forward on its own cadence without forcing the rest of the stack to rebuild.
 
-Q-Oracle has no published tag because it is the airlock, the component that reads and verifies foreign chains before their messages are allowed in. Nothing in the stack depends on Q-Oracle, so it does not need to publish a stable version for others to pin, and it reaches the cryptography root through a local path on disk rather than the shared commit while it is still being built.
+Q-Oracle publishes v0.1.0, its first tag, and is the airlock, the component that reads and verifies foreign chains before their messages are allowed in. It is a leaf that nothing in the stack depends on, so its version is a marker of its own progress rather than a pin anything else has to resolve, and it still reaches the cryptography root through a local path on disk rather than the shared commit while it is being built out.
 
 ## How the gate holds the map together
 
