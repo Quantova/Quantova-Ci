@@ -102,6 +102,54 @@ jobs:
           done < <(find target/release -maxdepth 1 -type f -perm -u+x)
           exit "$fail"
 
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" -o /tmp/gl.tgz
+          tar -xzf /tmp/gl.tgz -C /tmp gitleaks
+          install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+      - name: Secret scan over full history
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Full history secret scan. The allowlist below clears the known non secret
+          # classes, lockfiles and cargo checksums and the browser extension public key,
+          # placeholder tokens in docs, and public Q1 addresses, which are never secret
+          # because a secret always renders under the Q2 namespace, not Q1. A repo may add
+          # its own .gitleaks.toml to extend this. Any real secret fails the build.
+          cat > /tmp/gitleaks.toml <<'TOML'
+          title = "quantova secret scan"
+          [extend]
+          useDefault = true
+          [allowlist]
+          description = "public, example, and checksum data that is not a secret"
+          paths = [
+            '''(^|/)Cargo\.lock$''',
+            '''(^|/)package-lock\.json$''',
+            '''(^|/)Podfile\.lock$''',
+            '''\.cargo-checksum\.json$''',
+            '''(^|/)manifest\.json$''',
+            '''(^|/)migrations/.*\.py$''',
+            '''(^|/)coingecko\.ts$''',
+            '''(^|/)useMetrics\.ts$''',
+          ]
+          regexes = [
+            '''YOUR_[A-Z0-9_]+''',
+            '''Q1[0-9A-Za-z]{25,}''',
+            '''Bearer YOUR_ACCESS_TOKEN''',
+            '''q(mask|tov)\.[a-z0-9._]+''',
+          ]
+          TOML
+          gitleaks detect --source . --no-banner --redact --config /tmp/gitleaks.toml
+
   pins:
     runs-on: ubuntu-latest
     steps:
