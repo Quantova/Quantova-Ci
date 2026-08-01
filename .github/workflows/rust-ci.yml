@@ -14,11 +14,16 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Detect Rust project
         id: guard
         run: |
@@ -33,15 +38,17 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy (deny warnings)
         if: steps.guard.outputs.rust == 'true'
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-targets --all-features -- -D warnings
       - name: test
         if: steps.guard.outputs.rust == 'true'
-        run: cargo test --all-features
+        run: cargo test ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features
 
   coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Detect Rust project
         id: guard
         run: |
@@ -61,12 +68,14 @@ jobs:
         # pin only moves in a reviewable commit. cargo-llvm-cov instruments the same
         # test run the check job already runs, so this measures the real test suite
         # rather than a separate one written to hit a number.
-        run: cargo llvm-cov --all-features --workspace --fail-under-lines 70
+        run: cargo llvm-cov ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features --workspace --fail-under-lines 70
 
   deny:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Classical-crypto dependency gate
         if: ${{ hashFiles('Cargo.toml') != '' }}
         uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb # v2.1.1
@@ -77,13 +86,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         if: ${{ hashFiles('Cargo.toml') != '' }}
         with:
           toolchain: stable
       - name: Build release
         if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: cargo build --release --all-features
+        run: cargo build ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --release --all-features
       - name: Classical-crypto symbol scan
         if: ${{ hashFiles('Cargo.toml') != '' }}
         shell: bash
@@ -107,6 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Install gitleaks
         shell: bash
@@ -154,6 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Cross repo pin agreement gate
         shell: bash
         env:
@@ -343,6 +357,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Pin agreement self test
         if: ${{ hashFiles('fixtures/pin-agreement/agree/cross-repo-pins') != '' }}
         shell: bash
@@ -352,6 +368,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Symbol scan self test
         if: ${{ hashFiles('fixtures/symbol-scan/dirty/qtool') != '' }}
         shell: bash
@@ -361,6 +379,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         if: ${{ hashFiles('fixtures/fuzz/bridge-message-parsers/fuzz/fuzz_targets/airlock.rs') != '' }}
         with:
@@ -377,6 +397,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Pictographic code point lint
         shell: bash
         run: |
@@ -429,6 +451,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Identifier format lint
         shell: bash
         run: |
