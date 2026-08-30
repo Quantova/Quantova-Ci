@@ -1,9 +1,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Organization-wide lint policy. CI applies `-D warnings`; this file records the standing rules the
-# gatekeeper enforces and repos inherit into their workspace `[lints]` table.
-
 [rust]
 unsafe_code = "deny"          # any exception is a documented, reviewed spec decision
 missing_docs = "warn"
@@ -11,6 +8,5 @@ missing_docs = "warn"
 [clippy]
 all = "deny"
 pedantic = "warn"
-# Determinism and correctness are load-bearing for consensus and gas.
 float_arithmetic = "deny"     # no floats in consensus/gas/state paths
 integer_arithmetic = "warn"   # prefer checked/saturating in metered paths

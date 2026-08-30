@@ -3,20 +3,6 @@
 
 name: fuzz
 
-# Reusable fuzz gate imported by the repository that implements the bridge
-# Airlock and the repository that implements the Q-Oracle message parser:
-#   jobs:
-#     fuzz:
-#       uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@main
-# Every artifact these two parsers accept crosses a trust boundary from
-# outside the chain, an Airlock submission arrives from a foreign chain, a
-# Q-Oracle report arrives from off chain. A fuzz target for each proves two
-# properties against random and mutated input: the parser never panics, and
-# it rejects every artifact that is not a genuine Quantova artifact. See
-# fixtures/fuzz/bridge-message-parsers for the pattern a fuzz target follows
-# and docs/fuzz.md for how a repository adopts this gate. No repo merges a
-# change to either parser while this is red.
-
 on:
   workflow_call:
 
@@ -50,14 +36,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Every file under fuzz/fuzz_targets is one fuzz target, named for the
-          # component it parses, airlock or oracle_message by the convention this
-          # repository's fixture sets. Each target gets a bounded run so a pull
-          # request finishes in reasonable time; continuous fuzzing beyond this
-          # bound is a separate concern from this per-change gate. A crash, whether
-          # a panic or the target's own assertion that a foreign artifact must be
-          # rejected, exits nonzero and cargo fuzz prints the failing input and
-          # where it saved it.
           for target_path in fuzz/fuzz_targets/*.rs; do
             target="$(basename "$target_path" .rs)"
             echo "::group::fuzz target $target"

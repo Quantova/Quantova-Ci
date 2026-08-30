@@ -2,12 +2,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Identifier format scan over tracked files.
-# Reports and exits nonzero when a tracked file renders 0x and then six or more
-# hexadecimal characters, the shape of an Ethereum hash or address value.
-# The pattern is permitted only as a bare Rust integer literal in a .rs source file
-# for low level bit math. It is reported inside string and character literals, inside
-# line comments, and in every file that is not Rust source.
 set -euo pipefail
 
 python3 - <<'PY'

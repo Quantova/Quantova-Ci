@@ -2,27 +2,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Cross repo pin agreement check.
-#
-# For every cross repo git dependency of a binary, three facts must agree:
-#   1. the declared pin, the intended tag for the dependency, from the committed
-#      cross-repo-pins file in the repository;
-#   2. the committed lockfile, the commit the Cargo.lock resolved that dependency to;
-#   3. the remote peeled tag, the commit the remote tag actually points to.
-# The check asserts the declared tag, peeled at the remote, equals the commit the
-# committed lockfile resolved to, and that the lockfile pinned the declared tag.
-# A moved tag re-pointed at the remote, or a regenerated lockfile that resolved
-# elsewhere, breaks agreement and fails the check.
-#
-# Usage: scripts/pin-agreement.sh [repo-dir]
-# Reads <repo-dir>/cross-repo-pins and <repo-dir>/Cargo.lock. repo-dir defaults to
-# the current directory. Exits zero when every declared dependency agrees, and
-# exits nonzero with a message naming the dependency and the three values when any
-# pair disagrees.
-#
-# The real run peels the live remote with git ls-remote. Setting QTOV_PIN_PEEL_FIXTURE
-# to a fixture file makes the peel read from that file instead of the network, which
-# is how the hermetic self tests run without reaching any remote.
 set -euo pipefail
 
 dir="${1:-.}"
@@ -38,33 +17,22 @@ fixture_path = os.environ.get("QTOV_PIN_PEEL_FIXTURE")
 
 DEFAULT_OWNER = "Quantova"
 
-
 def die(msg):
     sys.stderr.write("pin-agreement: %s\n" % msg)
     sys.exit(1)
 
-
 def repo_name(value):
-    # The bare repository name used to match a declaration against a lockfile
-    # source. A leading git+, a query string, a trailing .git, and any owner or
-    # host prefix are not significant; the final path segment, lowercased, is the
-    # identity. The stack pins only Quantova repositories, so the bare name is
-    # unambiguous.
     value = value.strip()
     value = re.sub(r"^git\+", "", value)
     value = value.split("?", 1)[0]
     value = re.sub(r"\.git$", "", value)
     return value.rstrip("/").rsplit("/", 1)[-1].lower()
 
-
 def owner_slug(declared_repo):
-    # Expand a declared repository to an owner/name slug for the remote url. A bare
-    # name takes the Quantova organization, the only owner the stack pins.
     declared_repo = declared_repo.strip().rstrip("/")
     if "/" in declared_repo:
         return declared_repo
     return "%s/%s" % (DEFAULT_OWNER, declared_repo)
-
 
 def tagged_git_sources(text):
     found = []
@@ -74,20 +42,13 @@ def tagged_git_sources(text):
             found.append(src)
     return found
 
-
 if not os.path.isfile(pins_path):
-    # A repository with tag pinned cross repo git dependencies must declare them so the
-    # three way agreement can be checked; missing the declaration fails closed rather than
-    # leaving those pins unpoliced.
     if os.path.isfile(lock_path):
         with open(lock_path, encoding="utf-8") as fh:
             if tagged_git_sources(fh.read()):
                 die("%s has tag pinned cross repo git dependencies but no %s" % (lock_path, pins_path))
     sys.exit(0)
 
-# Read the declaration: one dependency per line, two whitespace separated fields,
-# the repository and the tag. Blank lines and lines opening with a comment marker
-# are ignored.
 declared = []
 seen = set()
 with open(pins_path, encoding="utf-8") as fh:
@@ -111,10 +72,6 @@ if not declared:
 if not os.path.isfile(lock_path):
     die("%s declares pins but %s is missing" % (pins_path, lock_path))
 
-# Read the lockfile. Every package block that carries a git source records the tag
-# it was pinned at and the commit it resolved to in its source string, of the shape
-# git+<url>?tag=<tag>#<commit>. All packages that come from one repository at one
-# tag share the same source, so a repository maps to a single (tag, commit) pair.
 resolved = {}
 source_re = re.compile(r'source = "git\+([^"]+)"')
 with open(lock_path, encoding="utf-8") as fh:
@@ -124,8 +81,6 @@ for m in source_re.finditer(lock_text):
     tag_m = re.search(r"[?&]tag=([^&#]+)", src)
     commit_m = re.search(r"#([0-9a-fA-F]{7,40})$", src)
     if not tag_m or not commit_m:
-        # A git dependency pinned by rev or branch rather than tag is outside the
-        # scope of this gate and is left for the source policy in deny.toml.
         continue
     key = repo_name(src)
     entry = (tag_m.group(1), commit_m.group(1).lower())
@@ -145,13 +100,7 @@ if fixture_path is not None:
             repo, tag, commit = parts
             peel_fixture[(repo_name(repo), tag)] = commit.lower()
 
-
 def peel_remote(declared_repo, tag):
-    # Peel the tag to the commit it points to. The real run asks the live remote
-    # with git ls-remote and prefers the peeled (^{}) line, which resolves an
-    # annotated tag to its commit; a lightweight tag has only the plain line. A
-    # fixture, when set, answers from a committed file so the self tests never
-    # reach the network.
     if peel_fixture is not None:
         commit = peel_fixture.get((repo_name(declared_repo), tag))
         if commit is None:
@@ -178,10 +127,8 @@ def peel_remote(declared_repo, tag):
         die("remote has no tag %s in %s" % (tag, declared_repo))
     return commit
 
-
 def short(commit):
     return commit[:12] if commit else commit
-
 
 failures = 0
 for declared_repo, declared_tag in declared:

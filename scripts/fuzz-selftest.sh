@@ -2,28 +2,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Self test for the fuzz gate.
-#
-# Three fixtures under fixtures/fuzz prove the two properties every fuzz
-# target the fuzz workflow runs is held to:
-#   bridge-message-parsers  a correct Airlock parser and a correct Q-Oracle
-#                            message parser, neither panics and both reject
-#                            every foreign artifact, the fuzz run exits zero;
-#   dirty-accepts-foreign   the Airlock parser with its magic check weakened
-#                            to a single byte, so it wrongly accepts a
-#                            foreign artifact, the fuzz run exits nonzero;
-#   dirty-panics             the Q-Oracle parser with its payload read
-#                            through a bare slice range instead of a checked
-#                            one, so an oversized declared length panics
-#                            instead of returning Err, the fuzz run exits
-#                            nonzero.
-# The two dirty fixtures each carry one committed regression input under
-# their regression/ directory, crafted to reach the planted bug on the first
-# execution, so proving the gate fires never depends on a mutation search
-# finding it by luck.
-#
-# Requires a nightly toolchain named `nightly` and cargo-fuzz on PATH. The
-# fuzz workflow installs both before this script runs.
 set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

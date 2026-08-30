@@ -2,10 +2,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Pictographic code point scan over tracked files.
-# Reports and exits nonzero when a tracked text file holds a code point in
-# U+1F300 to U+1FAFF, U+2600 to U+27BF, U+FE0F, U+2B00 to U+2BFF, or U+2300 to U+23FF.
-# Box drawing code points in U+2500 to U+257F are permitted and never reported.
 set -euo pipefail
 
 python3 - <<'PY'

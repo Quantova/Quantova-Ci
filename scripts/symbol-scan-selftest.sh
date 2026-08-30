@@ -2,11 +2,6 @@
 # Copyright 2026 Quantova Inc
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Self test for the classical-crypto symbol scan.
-#
-# Two fixtures under fixtures/symbol-scan, each a directory holding one executable:
-#   clean   carries only post quantum symbols, the scan exits zero;
-#   dirty   carries a classical curve symbol, the scan exits nonzero naming the file.
 set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

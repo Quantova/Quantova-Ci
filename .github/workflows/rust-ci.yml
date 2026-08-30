@@ -3,12 +3,6 @@
 
 name: rust-ci
 
-# Reusable pipeline imported by every repo:
-#   jobs:
-#     ci:
-#       uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@main
-# No repo merges while this is red.
-
 on:
   workflow_call:
   push:
@@ -63,11 +57,6 @@ jobs:
         run: cargo install cargo-llvm-cov --version 0.8.7 --locked
       - name: Coverage gate
         if: steps.guard.outputs.rust == 'true'
-        # Line coverage below this floor fails the build. Raising or lowering it is
-        # a deliberate, reviewable change to this file, the same way a cross repo
-        # pin only moves in a reviewable commit. cargo-llvm-cov instruments the same
-        # test run the check job already runs, so this measures the real test suite
-        # rather than a separate one written to hit a number.
         run: cargo llvm-cov ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features --workspace --fail-under-lines 70
 
   deny:
@@ -100,9 +89,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Layer 2 of PQ independence. Signatures of classical primitives, carried inline so the
-          # reusable workflow needs nothing from the consuming repository. A repo that ships no
-          # executable has nothing to scan and passes.
           patterns='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254|EC_POINT|BN_mod_exp|RSA_'
           fail=0
           while IFS= read -r bin; do
@@ -133,11 +119,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Full history secret scan. The allowlist below clears the known non secret
-          # classes, lockfiles and cargo checksums and the browser extension public key,
-          # placeholder tokens in docs, and public Q1 addresses, which are never secret
-          # because a secret always renders under the Q2 namespace, not Q1. A repo may add
-          # its own .gitleaks.toml to extend this. Any real secret fails the build.
           cat > /tmp/gitleaks.toml <<'TOML'
           title = "quantova secret scan"
           [extend]
@@ -177,12 +158,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # For each cross repo git dependency, the declared pin, the committed
-          # lockfile commit, and the remote peeled tag must agree. This job carries
-          # its own copy of the checker so the reusable workflow needs nothing from
-          # the consuming repository beyond its cross-repo-pins and Cargo.lock.
-          # It peels the live remote with git ls-remote. A repository with no
-          # cross-repo-pins file exits zero and is left alone.
           python3 - <<'PY'
           import os, re, subprocess, sys
 
@@ -192,11 +167,9 @@ jobs:
 
           DEFAULT_OWNER = "Quantova"
 
-
           def die(msg):
               sys.stderr.write("pin-agreement: %s\n" % msg)
               sys.exit(1)
-
 
           def repo_name(value):
               value = value.strip()
@@ -205,13 +178,11 @@ jobs:
               value = re.sub(r"\.git$", "", value)
               return value.rstrip("/").rsplit("/", 1)[-1].lower()
 
-
           def owner_slug(declared_repo):
               declared_repo = declared_repo.strip().rstrip("/")
               if "/" in declared_repo:
                   return declared_repo
               return "%s/%s" % (DEFAULT_OWNER, declared_repo)
-
 
           def tagged_git_sources(text):
               found = []
@@ -220,7 +191,6 @@ jobs:
                   if re.search(r"[?&]tag=[^&#]+", src) and re.search(r"#[0-9a-fA-F]{7,40}$", src):
                       found.append(src)
               return found
-
 
           if not os.path.isfile(pins_path):
               if os.path.isfile(lock_path):
@@ -280,7 +250,6 @@ jobs:
                       repo, tag, commit = parts
                       peel_fixture[(repo_name(repo), tag)] = commit.lower()
 
-
           def peel_remote(declared_repo, tag):
               if peel_fixture is not None:
                   commit = peel_fixture.get((repo_name(declared_repo), tag))
@@ -308,10 +277,8 @@ jobs:
                   die("remote has no tag %s in %s" % (tag, declared_repo))
               return commit
 
-
           def short(commit):
               return commit[:12] if commit else commit
-
 
           failures = 0
           for declared_repo, declared_tag in declared:
