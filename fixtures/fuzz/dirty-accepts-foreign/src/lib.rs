@@ -1,18 +1,6 @@
 // Copyright 2026 Quantova Inc
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! Deliberately broken fixture proving the fuzz gate fires.
-//!
-//! This is a copy of the Airlock parser fixture in
-//! `fixtures/fuzz/bridge-message-parsers` with one bug planted: the magic
-//! check only looks at the first byte instead of the full four byte header,
-//! so it wrongly treats some foreign artifacts as native. It exists only so
-//! `scripts/fuzz-selftest.sh` can prove the fuzz gate turns red on a real
-//! violation of the reject-foreign-artifacts property, the same way
-//! `fixtures/symbol-scan/dirty` proves the symbol scan fires. It is not
-//! production code and is not the fixture the fuzz workflow runs in a normal
-//! pass.
-
 pub const MAX_PAYLOAD_LEN: usize = 1 << 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,9 +13,6 @@ pub enum ParseError {
 
 const HEADER_VERSION: u8 = 1;
 
-/// BUG: this should compare the full four byte magic `QTAL`, but compares
-/// only the first byte, so it wrongly accepts a foreign artifact that merely
-/// starts with `Q`.
 fn has_airlock_magic(data: &[u8]) -> bool {
     data.first() == Some(&b'Q')
 }

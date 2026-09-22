@@ -1,29 +1,8 @@
 // Copyright 2026 Quantova Inc
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! Fixture message parsers the fuzz gate is proven against.
-//!
-//! This is not the production Airlock or Q-Oracle message format. Those live in
-//! the repository that implements the bridge and the repository that implements
-//! Q-Oracle. This crate is small enough to read in one sitting and stands in for
-//! both: an Airlock submission parser and a Q-Oracle report parser, each with the
-//! two properties the fuzz gate exists to hold every real parser to.
-//!
-//! The first property is that neither parser panics on any input, well formed,
-//! truncated, oversized, or arbitrary. Every field is read through a checked
-//! slice or `Option`, never a bare index, and a declared payload length is
-//! bounds checked before it is trusted for anything.
-//!
-//! The second property is that a foreign artifact, one that does not open with
-//! the Quantova header for that parser, is always rejected with `Err` and never
-//! accepted.
-
-/// The payload length declared inside an artifact is capped here. A declared
-/// length past the cap is rejected before it is used for anything, so an
-/// attacker supplied length field can never drive an unbounded allocation.
 pub const MAX_PAYLOAD_LEN: usize = 1 << 16;
 
-/// Why a parse was rejected. A foreign artifact is always `BadMagic`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParseError {
     TooShort,
@@ -37,31 +16,20 @@ const AIRLOCK_MAGIC: [u8; 4] = *b"QTAL";
 const ORACLE_MAGIC: [u8; 4] = *b"QTOR";
 const HEADER_VERSION: u8 = 1;
 
-/// True when `data` opens with the Airlock header. Too short to hold the
-/// header, or any other prefix, is always false rather than a panic.
 pub fn has_airlock_magic(data: &[u8]) -> bool {
     data.get(..AIRLOCK_MAGIC.len()) == Some(&AIRLOCK_MAGIC[..])
 }
 
-/// True when `data` opens with the Q-Oracle header.
 pub fn has_oracle_magic(data: &[u8]) -> bool {
     data.get(..ORACLE_MAGIC.len()) == Some(&ORACLE_MAGIC[..])
 }
 
-/// A parsed Airlock submission borrowing its payload from the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AirlockMessage<'a> {
     pub corridor: u8,
     pub payload: &'a [u8],
 }
 
-/// Parse an Airlock submission.
-///
-/// Layout: 4 byte magic `QTAL`, 1 byte version, 1 byte corridor tag, 4 byte
-/// big endian payload length, then exactly that many payload bytes and
-/// nothing after. Every field is read through a checked slice, so a
-/// truncated, oversized, or entirely foreign input is rejected with `Err`
-/// rather than a panic, for an input of any length.
 pub fn parse_airlock_message(data: &[u8]) -> Result<AirlockMessage<'_>, ParseError> {
     if !has_airlock_magic(data) {
         return Err(ParseError::BadMagic);
@@ -87,19 +55,12 @@ pub fn parse_airlock_message(data: &[u8]) -> Result<AirlockMessage<'_>, ParseErr
     Ok(AirlockMessage { corridor, payload })
 }
 
-/// A parsed Q-Oracle report borrowing its payload from the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OracleMessage<'a> {
     pub sequence: u64,
     pub payload: &'a [u8],
 }
 
-/// Parse a Q-Oracle report.
-///
-/// Layout: 4 byte magic `QTOR`, 1 byte version, 8 byte big endian sequence
-/// number, 4 byte big endian payload length, then exactly that many payload
-/// bytes and nothing after. Same checked slice discipline as the Airlock
-/// parser, so no bare index and no panic on any input.
 pub fn parse_oracle_message(data: &[u8]) -> Result<OracleMessage<'_>, ParseError> {
     if !has_oracle_magic(data) {
         return Err(ParseError::BadMagic);
@@ -170,9 +131,6 @@ mod tests {
         assert_eq!(msg.payload, b"price report");
     }
 
-    // A foreign artifact is anything that does not open with the Quantova
-    // header for that parser. Every one of these must be rejected, never
-    // accepted and never a panic.
     const FOREIGN_ARTIFACTS: &[&[u8]] = &[
         b"",
         b"Q",
