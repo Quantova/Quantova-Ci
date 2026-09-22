@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 [rust]
-unsafe_code = "deny"          # any exception is a documented, reviewed spec decision
+unsafe_code = "deny"
 missing_docs = "warn"
 
 [clippy]
 all = "deny"
 pedantic = "warn"
-float_arithmetic = "deny"     # no floats in consensus/gas/state paths
-integer_arithmetic = "warn"   # prefer checked/saturating in metered paths
+float_arithmetic = "deny"
+integer_arithmetic = "warn"
