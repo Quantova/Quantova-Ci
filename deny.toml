@@ -21,6 +21,13 @@ deny = [
     "pairing",
     "openssl",
     "openssl-sys",
+    "ring",
+    "x25519-dalek",
+    "ecdsa",
+    "p384",
+    "blst",
+    "libsecp256k1",
+    "ark-bn254",
 ]
 
 [advisories]

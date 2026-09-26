@@ -137,7 +137,7 @@ jobs:
           ]
           regexes = [
             '''YOUR_[A-Z0-9_]+''',
-            '''Q1[0-9A-Za-z]{25,}''',
+            '''^[Qq]1[0-9A-Za-z]{25,}$''',
             '''Bearer YOUR_ACCESS_TOKEN''',
             '''q(mask|tov)\.[a-z0-9._]+''',
           ]

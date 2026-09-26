@@ -39,7 +39,7 @@ It imports the shared pipeline, which already carries the gate as its own job, t
 ```
 jobs:
   ci:
-    uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@main
+    uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
 ```
 
 and the pin agreement job runs on every push and pull request beside the deny job. The job peels the live remote with git ls-remote and needs nothing from the consuming repository beyond its declaration file and its Cargo.lock. A repository that carries no declaration file passes the job untouched, so the gate stays inert until a binary opts in by committing a declaration.

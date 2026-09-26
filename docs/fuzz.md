@@ -33,7 +33,7 @@ A repository that owns the Airlock parser or the Q-Oracle message parser writes 
 ```yaml
 jobs:
   fuzz:
-    uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@main
+    uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
 ```
 
 The workflow finds every file under `fuzz/fuzz_targets`, builds it on a nightly toolchain, and runs it for a bounded time. A repository with no fuzz targets passes untouched. No repo merges a change to either parser while this is red.
