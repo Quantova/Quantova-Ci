@@ -33,6 +33,9 @@ jobs:
       - name: clippy (deny warnings)
         if: steps.guard.outputs.rust == 'true'
         run: cargo clippy ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-targets --all-features -- -D warnings
+      - name: panic and arithmetic lints (advisory)
+        if: steps.guard.outputs.rust == 'true'
+        run: cargo clippy ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --lib --bins --all-features -- -W clippy::indexing_slicing -W clippy::arithmetic_side_effects -A clippy::all || true
       - name: test
         if: steps.guard.outputs.rust == 'true'
         run: cargo test ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features
