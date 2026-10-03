@@ -20,7 +20,7 @@ jobs:
         with:
           toolchain: stable
       - name: Build release
-        run: cargo build ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --release --all-features
+        run: cargo build --locked --release --all-features
       - name: Classical-crypto symbol scan
         shell: bash
         run: |

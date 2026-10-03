@@ -32,13 +32,13 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy (deny warnings)
         if: steps.guard.outputs.rust == 'true'
-        run: cargo clippy ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - name: panic and arithmetic lints (advisory)
         if: steps.guard.outputs.rust == 'true'
-        run: cargo clippy ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --lib --bins --all-features -- -W clippy::indexing_slicing -W clippy::arithmetic_side_effects -A clippy::all || true
+        run: cargo clippy --locked --lib --bins --all-features -- -W clippy::indexing_slicing -W clippy::arithmetic_side_effects -A clippy::all || true
       - name: test
         if: steps.guard.outputs.rust == 'true'
-        run: cargo test ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features
+        run: cargo test --locked --all-features
 
   coverage:
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
         run: cargo install cargo-llvm-cov --version 0.8.7 --locked
       - name: Coverage gate
         if: steps.guard.outputs.rust == 'true'
-        run: cargo llvm-cov ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --all-features --workspace --fail-under-lines 70
+        run: cargo llvm-cov --locked --all-features --workspace --fail-under-lines 70
 
   deny:
     runs-on: ubuntu-latest
@@ -86,7 +86,7 @@ jobs:
           toolchain: stable
       - name: Build release
         if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: cargo build ${{ hashFiles('Cargo.lock') != '' && '--locked' || '' }} --release --all-features
+        run: cargo build --locked --release --all-features
       - name: Classical-crypto symbol scan
         if: ${{ hashFiles('Cargo.toml') != '' }}
         shell: bash
