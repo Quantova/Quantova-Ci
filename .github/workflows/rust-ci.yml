@@ -5,6 +5,11 @@ name: rust-ci
 
 on:
   workflow_call:
+    inputs:
+      release-features:
+        type: string
+        required: false
+        default: "--all-features"
   push:
   pull_request:
 
@@ -86,7 +91,9 @@ jobs:
           toolchain: stable
       - name: Build release
         if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: cargo build --locked --release --all-features
+        env:
+          RELEASE_FEATURES: ${{ inputs.release-features }}
+        run: cargo build --locked --release $RELEASE_FEATURES
       - name: Classical-crypto symbol scan
         if: ${{ hashFiles('Cargo.toml') != '' }}
         shell: bash
