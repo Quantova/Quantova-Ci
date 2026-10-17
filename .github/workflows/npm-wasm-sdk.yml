@@ -42,6 +42,14 @@ on:
         type: string
         required: false
         default: "npm test"
+      test-node-versions:
+        type: string
+        required: false
+        default: '["20", "22", "24"]'
+      pack-allowlist:
+        type: string
+        required: false
+        default: ""
     secrets:
       NPM_TOKEN:
         required: false
@@ -52,10 +60,44 @@ permissions:
 jobs:
   reproduce-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: npm-wasm-sdk-reproduce-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Install gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver=8.30.1
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" -o "$RUNNER_TEMP/gl.tgz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gl.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gl.tgz" -C "$RUNNER_TEMP" gitleaks
+          install -m 0755 "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
+      - name: Secret scan over full history
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/gitleaks.toml" <<'TOML'
+          title = "quantova secret scan"
+          [extend]
+          useDefault = true
+          [allowlist]
+          description = "public, example, and checksum data that is not a secret"
+          paths = [
+            '''(^|/)Cargo\.lock$''',
+            '''(^|/)package-lock\.json$''',
+          ]
+          regexes = [
+            '''YOUR_[A-Z0-9_]+''',
+            '''^[Qq]1[0-9A-Za-z]{25,}$''',
+          ]
+          TOML
+          gitleaks detect --source . --no-banner --redact --config "$RUNNER_TEMP/gitleaks.toml"
       - name: Rust toolchain
         if: inputs.native-dir != ''
         shell: bash
@@ -130,6 +172,62 @@ jobs:
           node-version: ${{ inputs.node-version }}
       - name: Install
         run: npm ci --ignore-scripts
+      - name: Dependency advisories and registry signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --audit-level=high
+          npm audit signatures
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Test
+        shell: bash
+        env:
+          TEST_COMMAND: ${{ inputs.test-command }}
+        run: bash -c "$TEST_COMMAND"
+      - name: Package contents
+        shell: bash
+        env:
+          PACK_ALLOWLIST: ${{ inputs.pack-allowlist }}
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json --ignore-scripts > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const files = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0].files.map((f) => f.path);
+            const banned = /(^|\/)(\.env[^/]*|\.npmrc|id_[a-z0-9]+|[^/]*\.(pem|key|p12|pfx|keystore|jks))$/i;
+            const allow = process.env.PACK_ALLOWLIST ? new RegExp(process.env.PACK_ALLOWLIST) : null;
+            const bad = files.filter((f) => banned.test(f) || (allow && !allow.test(f)));
+            for (const f of files) console.log(f);
+            if (bad.length) { console.error("::error::the package would publish files it must not: " + bad.join(", ")); process.exit(1); }
+          ' "$RUNNER_TEMP/pack.json"
+      - name: Software bill of materials
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm sbom --sbom-format cyclonedx --omit=dev > "$RUNNER_TEMP/sbom.cdx.json"
+          sha256sum "$RUNNER_TEMP/sbom.cdx.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sbom
+          path: ${{ runner.temp }}/sbom.cdx.json
+
+  test-matrix:
+    needs: reproduce-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        node: ${{ fromJSON(inputs.test-node-versions) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install
+        run: npm ci --ignore-scripts
       - name: Test
         shell: bash
         env:
@@ -137,9 +235,13 @@ jobs:
         run: bash -c "$TEST_COMMAND"
 
   publish:
-    needs: reproduce-and-test
+    needs: [reproduce-and-test, test-matrix]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: npm-wasm-sdk-publish-${{ github.repository }}
+      cancel-in-progress: false
     environment: npm
     permissions:
       contents: read
@@ -148,10 +250,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+      - name: Tag is on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tagged commit is not on main, refusing to publish it" >&2
+            exit 1
+          fi
       - name: Tag matches the package version
         shell: bash
         run: |
@@ -167,3 +279,18 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public --ignore-scripts
+      - name: Published version carries provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if npm view "$name@$version" dist.attestations.provenance.predicateType --prefer-online 2>/dev/null | grep -q slsa.dev/provenance; then
+              echo "$name@$version carries provenance"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::$name@$version was published without a provenance attestation" >&2
+          exit 1
