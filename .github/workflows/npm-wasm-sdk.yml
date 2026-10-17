@@ -1,0 +1,169 @@
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+name: npm-wasm-sdk
+
+on:
+  workflow_call:
+    inputs:
+      native-dir:
+        type: string
+        required: false
+        default: "native"
+      wasm-dir:
+        type: string
+        required: false
+        default: "wasm"
+      build-script:
+        type: string
+        required: false
+        default: "native/build.sh"
+      rust-toolchain:
+        type: string
+        required: false
+        default: "1.98.0"
+      wasm-pack-version:
+        type: string
+        required: false
+        default: "0.15.0"
+      binaryen-version:
+        type: string
+        required: false
+        default: "130"
+      binaryen-sha256:
+        type: string
+        required: false
+        default: "0a18362361ad05465118cd8eeb72edaeec89de6894bc283576ef4e07aa3babcc"
+      node-version:
+        type: string
+        required: false
+        default: "20"
+      test-command:
+        type: string
+        required: false
+        default: "npm test"
+    secrets:
+      NPM_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Rust toolchain
+        if: inputs.native-dir != ''
+        shell: bash
+        env:
+          NATIVE_DIR: ${{ inputs.native-dir }}
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+        run: |
+          set -euo pipefail
+          if [ -f rust-toolchain.toml ] || [ -f rust-toolchain ] || [ -f "$NATIVE_DIR/rust-toolchain.toml" ] || [ -f "$NATIVE_DIR/rust-toolchain" ]; then
+            cd "$NATIVE_DIR"
+            rustup toolchain install
+            rustup target add wasm32-unknown-unknown
+          else
+            rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+            echo "RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN" >> "$GITHUB_ENV"
+          fi
+      - name: Pinned binaryen
+        if: inputs.native-dir != ''
+        shell: bash
+        env:
+          BINARYEN_VERSION: ${{ inputs.binaryen-version }}
+          BINARYEN_SHA256: ${{ inputs.binaryen-sha256 }}
+        run: |
+          set -euo pipefail
+          case "$BINARYEN_VERSION" in ''|*[!0-9]*) echo "::error::binaryen-version is a release number such as 130" >&2; exit 1 ;; esac
+          case "$BINARYEN_SHA256" in *[!0-9a-f]*) echo "::error::binaryen-sha256 is 64 lowercase hex characters" >&2; exit 1 ;; esac
+          [ "${#BINARYEN_SHA256}" = "64" ] || { echo "::error::binaryen-sha256 is 64 lowercase hex characters" >&2; exit 1; }
+          archive="$RUNNER_TEMP/binaryen.tar.gz"
+          curl -sSfL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz" -o "$archive"
+          echo "$BINARYEN_SHA256  $archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_${BINARYEN_VERSION}/bin" >> "$GITHUB_PATH"
+      - name: Pinned wasm-pack and wasm-bindgen
+        if: inputs.native-dir != ''
+        shell: bash
+        env:
+          NATIVE_DIR: ${{ inputs.native-dir }}
+          WASM_PACK_VERSION: ${{ inputs.wasm-pack-version }}
+        run: |
+          set -euo pipefail
+          cargo install wasm-pack --version "$WASM_PACK_VERSION" --locked
+          bindgen="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' "$NATIVE_DIR/Cargo.lock")"
+          if [ -z "$bindgen" ]; then
+            echo "::error::$NATIVE_DIR/Cargo.lock does not lock wasm-bindgen" >&2
+            exit 1
+          fi
+          cargo install wasm-bindgen-cli --version "$bindgen" --locked
+      - name: Rebuild the committed wasm from source
+        if: inputs.native-dir != ''
+        shell: bash
+        env:
+          NATIVE_DIR: ${{ inputs.native-dir }}
+          WASM_DIR: ${{ inputs.wasm-dir }}
+          BUILD_SCRIPT: ${{ inputs.build-script }}
+        run: |
+          set -euo pipefail
+          rustc --version
+          wasm-opt --version
+          wasm-pack --version
+          grep -q -- '--locked' "$BUILD_SCRIPT" || { echo "::error::$BUILD_SCRIPT must build with --locked" >&2; exit 1; }
+          bash "$BUILD_SCRIPT"
+          sha256sum "$WASM_DIR"/*.wasm
+          git diff --exit-code -- "$NATIVE_DIR/Cargo.lock"
+          if [ -n "$(git status --porcelain --untracked-files=all -- "$WASM_DIR")" ]; then
+            git status --porcelain --untracked-files=all -- "$WASM_DIR"
+            git diff --stat -- "$WASM_DIR"
+            echo "::error::the wasm rebuilt from source differs from the committed $WASM_DIR" >&2
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Test
+        shell: bash
+        env:
+          TEST_COMMAND: ${{ inputs.test-command }}
+        run: bash -c "$TEST_COMMAND"
+
+  publish:
+    needs: reproduce-and-test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: "https://registry.npmjs.org"
+      - name: Tag matches the package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Publish with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --ignore-scripts

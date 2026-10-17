@@ -36,7 +36,7 @@ jobs:
     uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
 ```
 
-The workflow finds every file under `fuzz/fuzz_targets`, builds it on a nightly toolchain, and runs it for a bounded time. A repository with no fuzz targets passes untouched. No repo merges a change to either parser while this is red.
+The workflow finds every file under `fuzz/fuzz_targets`, builds it on a nightly toolchain, and runs each target for the number of seconds in the `seconds-per-target` input, 300 by default and never less than 60. A repository that imports the workflow and has no fuzz target fails it, unless it sets the input `require-targets` to false. No repo merges a change to either parser while this is red.
 
 ## The proof
 

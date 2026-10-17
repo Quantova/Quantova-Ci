@@ -5,6 +5,15 @@ name: fuzz
 
 on:
   workflow_call:
+    inputs:
+      require-targets:
+        type: boolean
+        required: false
+        default: true
+      seconds-per-target:
+        type: number
+        required: false
+        default: 300
 
 permissions:
   contents: read
@@ -18,9 +27,14 @@ jobs:
           persist-credentials: false
       - name: Detect fuzz targets
         id: guard
+        env:
+          REQUIRE_TARGETS: ${{ inputs.require-targets }}
         run: |
           if compgen -G "fuzz/fuzz_targets/*.rs" > /dev/null; then
             echo "present=true" >> "$GITHUB_OUTPUT"
+          elif [ "$REQUIRE_TARGETS" = "true" ]; then
+            echo "::error::this repository imports the fuzz gate but has no fuzz target in fuzz/fuzz_targets, add one or pass require-targets: false" >&2
+            exit 1
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
@@ -34,11 +48,20 @@ jobs:
       - name: Run every fuzz target
         if: steps.guard.outputs.present == 'true'
         shell: bash
+        env:
+          SECONDS_PER_TARGET: ${{ inputs.seconds-per-target }}
         run: |
           set -euo pipefail
+          case "$SECONDS_PER_TARGET" in
+            ''|*[!0-9]*) echo "::error::seconds-per-target must be a positive whole number" >&2; exit 1 ;;
+          esac
+          if [ "$SECONDS_PER_TARGET" -lt 60 ]; then
+            echo "::error::seconds-per-target must be at least 60" >&2
+            exit 1
+          fi
           for target_path in fuzz/fuzz_targets/*.rs; do
             target="$(basename "$target_path" .rs)"
             echo "::group::fuzz target $target"
-            cargo +nightly fuzz run "$target" -- -max_total_time=120 -max_len=4096
+            cargo +nightly fuzz run "$target" -- -max_total_time="$SECONDS_PER_TARGET" -max_len=4096
             echo "::endgroup::"
           done

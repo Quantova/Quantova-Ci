@@ -14,6 +14,14 @@ on:
         type: string
         required: false
         default: "auto"
+      deny-unsafe-code:
+        type: boolean
+        required: false
+        default: false
+      deny-float-arithmetic:
+        type: boolean
+        required: false
+        default: false
   push:
   pull_request:
 
@@ -51,10 +59,19 @@ jobs:
       - name: fmt
         if: steps.guard.outputs.rust == 'true'
         run: cargo fmt --all -- --check
-      - name: clippy (deny warnings)
+      - name: clippy (deny warnings and leftover debug macros)
         if: steps.guard.outputs.rust == 'true'
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
-      - name: panic and arithmetic lints (advisory)
+        env:
+          DENY_UNSAFE: ${{ inputs.deny-unsafe-code }}
+          DENY_FLOAT: ${{ inputs.deny-float-arithmetic }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ "$DENY_UNSAFE" = "true" ]; then extra+=(-D unsafe_code); fi
+          if [ "$DENY_FLOAT" = "true" ]; then extra+=(-D clippy::float_arithmetic); fi
+          cargo clippy --locked --all-targets --all-features -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented ${extra[@]+"${extra[@]}"}
+      - name: panic and arithmetic lints (advisory, never fails the build)
         if: steps.guard.outputs.rust == 'true'
         run: cargo clippy --locked --lib --bins --all-features -- -W clippy::indexing_slicing -W clippy::arithmetic_side_effects -A clippy::all || true
       - name: test
@@ -127,15 +144,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          bash -s -- target/release <<'SH'
+          set -euo pipefail
+          dir="$1"
           patterns='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254|EC_POINT|BN_mod_exp|RSA_'
           fail=0
-          while IFS= read -r bin; do
-            if strings "$bin" | grep -Eiq "$patterns"; then
-              echo "::error file=$bin::classical-crypto symbol signature detected in $bin"
+          count=0
+          while IFS= read -r -d '' artifact; do
+            count=$((count + 1))
+            if strings -a "$artifact" | grep -Eiq "$patterns"; then
+              echo "::error file=$artifact::classical-crypto symbol signature detected in $artifact" >&2
               fail=1
             fi
-          done < <(find target/release -maxdepth 1 -type f -perm -u+x)
+          done < <(
+            find "$dir" -maxdepth 1 -type f \( -perm -u+x -o -name 'lib*.rlib' -o -name '*.so' -o -name '*.dylib' -o -name '*.a' -o -name '*.wasm' \) -print0 2>/dev/null
+            find "$(dirname "$dir")" -mindepth 3 -maxdepth 3 -type f -path "$(dirname "$dir")/*/release/*.wasm" -print0 2>/dev/null
+          )
+          if [ "$count" = "0" ]; then
+            echo "::error::no release artifact found in $dir, nothing was scanned" >&2
+            exit 1
+          fi
+          echo "scanned $count release artifacts in $dir"
           exit "$fail"
+          SH
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -201,19 +232,30 @@ jobs:
 
           pins_path = os.environ["QTOV_PINS_FILE"]
           lock_path = os.environ["QTOV_LOCK_FILE"]
+          repo_root = os.environ.get("QTOV_REPO_ROOT") or "."
           fixture_path = os.environ.get("QTOV_PIN_PEEL_FIXTURE")
 
           DEFAULT_OWNER = "Quantova"
+          COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+          HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
+
+          failures = 0
 
           def die(msg):
               sys.stderr.write("pin-agreement: %s\n" % msg)
               sys.exit(1)
 
+          def fail(msg):
+              global failures
+              sys.stderr.write("pin-agreement: %s\n" % msg)
+              failures += 1
+
           def repo_name(value):
               value = value.strip()
               value = re.sub(r"^git\+", "", value)
+              value = value.split("#", 1)[0]
               value = value.split("?", 1)[0]
-              value = re.sub(r"\.git$", "", value)
+              value = re.sub(r"\.git$", "", value.rstrip("/"))
               return value.rstrip("/").rsplit("/", 1)[-1].lower()
 
           def owner_slug(declared_repo):
@@ -222,20 +264,118 @@ jobs:
                   return declared_repo
               return "%s/%s" % (DEFAULT_OWNER, declared_repo)
 
-          def tagged_git_sources(text):
+          def short(commit):
+              return commit[:12] if commit else commit
+
+          def parse_source(src):
+              base, _, commit = src.partition("#")
+              query = base.split("?", 1)[1] if "?" in base else ""
+              params = {}
+              for item in query.split("&"):
+                  if "=" in item:
+                      k, v = item.split("=", 1)
+                      params[k] = v
+              return {
+                  "source": src,
+                  "repo": repo_name(src),
+                  "tag": params.get("tag"),
+                  "rev": params.get("rev"),
+                  "branch": params.get("branch"),
+                  "commit": commit.lower(),
+              }
+
+          lock_sources = []
+          if os.path.isfile(lock_path):
+              with open(lock_path, encoding="utf-8") as fh:
+                  lock_text = fh.read()
+              for m in re.finditer(r'source = "git\+([^"]+)"', lock_text):
+                  lock_sources.append(parse_source(m.group(1)))
+
+          unique_sources = {}
+          for entry in lock_sources:
+              unique_sources.setdefault(entry["source"], entry)
+
+          for entry in unique_sources.values():
+              if not COMMIT_RE.match(entry["commit"]):
+                  fail("%s: git source %s does not resolve to a full commit" % (entry["repo"], entry["source"]))
+                  continue
+              if entry["tag"]:
+                  continue
+              rev = entry["rev"]
+              if rev and HEX_RE.match(rev) and 7 <= len(rev) <= 40 and entry["commit"].startswith(rev.lower()):
+                  continue
+              if rev:
+                  fail("%s: git source %s pins rev=%s which is not a commit prefix of the resolved commit" % (entry["repo"], entry["source"], rev))
+              elif entry["branch"]:
+                  fail("%s: git source %s follows branch %s and is unpinned" % (entry["repo"], entry["source"], entry["branch"]))
+              else:
+                  fail("%s: git source %s names no rev or tag and is unpinned" % (entry["repo"], entry["source"]))
+
+          commits_by_repo = {}
+          for entry in lock_sources:
+              commits_by_repo.setdefault(entry["repo"], set()).add(entry["commit"])
+          for repo, commits in sorted(commits_by_repo.items()):
+              if len(commits) > 1:
+                  fail("%s: lockfile resolves it to more than one commit: %s" % (repo, ", ".join(short(c) for c in sorted(commits))))
+
+          def manifest_paths():
+              out = subprocess.run(
+                  ["git", "ls-files", "-co", "--exclude-standard", "-z", "--", "*Cargo.toml"],
+                  cwd=repo_root,
+                  capture_output=True,
+              )
+              if out.returncode == 0:
+                  return sorted(os.fsdecode(p) for p in out.stdout.split(b"\x00") if p and os.path.basename(os.fsdecode(p)) == "Cargo.toml")
               found = []
-              for m in re.finditer(r'source = "git\+([^"]+)"', text):
-                  src = m.group(1)
-                  if re.search(r"[?&]tag=[^&#]+", src) and re.search(r"#[0-9a-fA-F]{7,40}$", src):
-                      found.append(src)
+              for base, dirs, files in os.walk(repo_root):
+                  dirs[:] = [d for d in dirs if d not in (".git", "target", "node_modules")]
+                  if "Cargo.toml" in files:
+                      found.append(os.path.relpath(os.path.join(base, "Cargo.toml"), repo_root))
+              return sorted(found)
+
+          def declared_paths(text):
+              try:
+                  import tomllib
+                  doc = tomllib.loads(text)
+              except Exception:
+                  return [m.group(1) or m.group(2) for m in re.finditer(r"""(?m)^[^#\n]*?\bpath\s*=\s*(?:"([^"]*)"|'([^']*)')""", text)]
+              found = []
+              stack = [doc]
+              while stack:
+                  node = stack.pop()
+                  if isinstance(node, dict):
+                      value = node.get("path")
+                      if isinstance(value, str):
+                          found.append(value)
+                      stack.extend(node.values())
+                  elif isinstance(node, list):
+                      stack.extend(node)
               return found
 
+          root_abs = os.path.realpath(repo_root)
+          external_paths = []
+          for manifest in manifest_paths():
+              full = os.path.join(root_abs, manifest)
+              try:
+                  with open(full, encoding="utf-8") as fh:
+                      text = fh.read()
+              except OSError:
+                  continue
+              for value in declared_paths(text):
+                  target = os.path.normpath(os.path.join(os.path.dirname(full), value))
+                  rel = os.path.relpath(target, root_abs)
+                  parts = rel.replace(os.sep, "/").split("/")
+                  if parts[0] != "..":
+                      continue
+                  outside = [p for p in parts if p != ".."]
+                  key = (outside[0] if outside else os.path.basename(target)).lower()
+                  external_paths.append((manifest, value, key))
+
           if not os.path.isfile(pins_path):
-              if os.path.isfile(lock_path):
-                  with open(lock_path, encoding="utf-8") as fh:
-                      if tagged_git_sources(fh.read()):
-                          die("%s has tag pinned cross repo git dependencies but no %s" % (lock_path, pins_path))
-              sys.exit(0)
+              tagged = sorted({e["repo"] for e in lock_sources if e["tag"]})
+              if tagged:
+                  fail("%s has tag pinned cross repo git dependencies (%s) but no %s" % (lock_path, ", ".join(tagged), pins_path))
+              sys.exit(1 if failures else 0)
 
           declared = []
           seen = set()
@@ -246,33 +386,25 @@ jobs:
                       continue
                   parts = line.split()
                   if len(parts) != 2:
-                      die("%s:%d expected `repository tag`, found %r" % (pins_path, lineno, line))
-                  repo, tag = parts
+                      die("%s:%d expected `repository tag` or `repository commit`, found %r" % (pins_path, lineno, line))
+                  repo, pin = parts
+                  if HEX_RE.match(pin) and len(pin) != 40:
+                      die("%s:%d %s is pinned to %s, a commit pin must be the full 40 hex commit" % (pins_path, lineno, repo, pin))
                   key = repo_name(repo)
                   if key in seen:
                       die("%s:%d repository %s declared twice" % (pins_path, lineno, repo))
                   seen.add(key)
-                  declared.append((repo, tag))
+                  declared.append((repo, pin))
+
+          for manifest, value, key in external_paths:
+              if key not in seen:
+                  fail("%s: path dependency %s leaves the repository and %s is not declared in %s" % (manifest, value, key, pins_path))
 
           if not declared:
-              sys.exit(0)
+              sys.exit(1 if failures else 0)
 
-          if not os.path.isfile(lock_path):
+          if not os.path.isfile(lock_path) and not external_paths:
               die("%s declares pins but %s is missing" % (pins_path, lock_path))
-
-          resolved = {}
-          source_re = re.compile(r'source = "git\+([^"]+)"')
-          with open(lock_path, encoding="utf-8") as fh:
-              lock_text = fh.read()
-          for m in source_re.finditer(lock_text):
-              src = m.group(1)
-              tag_m = re.search(r"[?&]tag=([^&#]+)", src)
-              commit_m = re.search(r"#([0-9a-fA-F]{7,40})$", src)
-              if not tag_m or not commit_m:
-                  continue
-              key = repo_name(src)
-              entry = (tag_m.group(1), commit_m.group(1).lower())
-              resolved.setdefault(key, set()).add(entry)
 
           peel_fixture = None
           if fixture_path is not None:
@@ -315,49 +447,55 @@ jobs:
                   die("remote has no tag %s in %s" % (tag, declared_repo))
               return commit
 
-          def short(commit):
-              return commit[:12] if commit else commit
+          path_keys = {key for _, _, key in external_paths}
 
-          failures = 0
-          for declared_repo, declared_tag in declared:
+          for declared_repo, pin in declared:
               key = repo_name(declared_repo)
-              entries = resolved.get(key)
+              entries = [e for e in lock_sources if e["repo"] == key]
               if not entries:
-                  sys.stderr.write(
-                      "pin-agreement: %s: declared at %s but no git dependency on it is present in %s\n"
-                      % (declared_repo, declared_tag, lock_path)
-                  )
-                  failures += 1
+                  if key in path_keys:
+                      continue
+                  fail("%s: declared at %s but no git or path dependency on it is present" % (declared_repo, pin))
                   continue
-              if len(entries) > 1:
-                  joined = ", ".join("%s at %s" % (t, short(c)) for t, c in sorted(entries))
-                  sys.stderr.write(
-                      "pin-agreement: %s: lockfile resolves it to more than one pin: %s\n"
-                      % (declared_repo, joined)
-                  )
-                  failures += 1
+              if COMMIT_RE.match(pin.lower()):
+                  want = pin.lower()
+                  for entry in {e["source"]: e for e in entries}.values():
+                      if entry["commit"] != want:
+                          fail("%s: declared commit and lockfile commit disagree" % declared_repo)
+                          sys.stderr.write("  declared commit:  %s\n" % want)
+                          sys.stderr.write("  lockfile source:  %s\n" % entry["source"])
+                          sys.stderr.write("  lockfile commit:  %s\n" % entry["commit"])
                   continue
-              lock_tag, lock_commit = next(iter(entries))
-              remote_commit = peel_remote(declared_repo, declared_tag)
-
-              tag_ok = lock_tag == declared_tag
-              commit_ok = lock_commit == remote_commit
-              if tag_ok and commit_ok:
+              tags = sorted({e["tag"] or "" for e in entries})
+              commits = sorted({e["commit"] for e in entries})
+              if tags != [pin]:
+                  fail("%s: declared tag and lockfile tag disagree" % declared_repo)
+                  sys.stderr.write("  declared tag:     %s\n" % pin)
+                  sys.stderr.write("  lockfile tags:    %s\n" % ", ".join(t or "(none)" for t in tags))
                   continue
-
-              failures += 1
-              if not tag_ok:
-                  reason = "declared tag and lockfile tag disagree"
-              else:
-                  reason = "lockfile commit and remote peeled commit disagree"
-              sys.stderr.write("pin-agreement: %s: %s\n" % (declared_repo, reason))
-              sys.stderr.write("  declared tag:         %s\n" % declared_tag)
-              sys.stderr.write("  lockfile tag:         %s\n" % lock_tag)
-              sys.stderr.write("  lockfile commit:      %s\n" % lock_commit)
-              sys.stderr.write("  remote peeled commit: %s\n" % remote_commit)
+              if len(commits) != 1:
+                  continue
+              remote_commit = peel_remote(declared_repo, pin)
+              if commits[0] != remote_commit:
+                  fail("%s: lockfile commit and remote peeled commit disagree" % declared_repo)
+                  sys.stderr.write("  declared tag:         %s\n" % pin)
+                  sys.stderr.write("  lockfile tag:         %s\n" % pin)
+                  sys.stderr.write("  lockfile commit:      %s\n" % commits[0])
+                  sys.stderr.write("  remote peeled commit: %s\n" % remote_commit)
 
           sys.exit(1 if failures else 0)
           PY
+
+  inline-copies:
+    if: github.repository == 'Quantova/Quantova-Ci'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Inline workflow copies match the scripts
+        shell: bash
+        run: bash scripts/inline-copy-check.sh
 
   pins-selftest:
     runs-on: ubuntu-latest

@@ -8,7 +8,7 @@ Only the NIST post quantum algorithms exist in this stack. These are ML KEM from
 
 ## Commits and pull requests
 
-Author every commit as the repository owner only, with no other attribution anywhere. Write clean code with few comments and no filler. Never push straight to main. Work on a feature branch, open a pull request, and merge only when the checks are green. Every pull request names the specification section it implements. Cross repo dependencies pin git tags.
+Author every commit as the repository owner only, with no other attribution anywhere. Write clean code with few comments and no filler. Never push straight to main. Work on a feature branch, open a pull request, and merge only when the checks are green. Every pull request names the specification section it implements. Cross repo dependencies pin a git commit or a tag.
 
 ## Claims discipline
 
