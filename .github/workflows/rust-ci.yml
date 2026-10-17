@@ -10,6 +10,10 @@ on:
         type: string
         required: false
         default: "--all-features"
+      rust:
+        type: string
+        required: false
+        default: "auto"
   push:
   pull_request:
 
@@ -25,8 +29,20 @@ jobs:
           persist-credentials: false
       - name: Detect Rust project
         id: guard
+        env:
+          RUST_INPUT: ${{ inputs.rust }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$RUST_INPUT" = "false" ] || [ "$REPO" = "Quantova/Quantova-Ci" ]; then
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+          elif [ -f Cargo.toml ]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$(git ls-files '*Cargo.toml')" ]; then
+            echo "this repository has crates but no root Cargo.toml, so nothing would be built or tested; add a root workspace or pass rust: false" >&2
+            exit 1
+          else
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         if: steps.guard.outputs.rust == 'true'
         with:
@@ -53,8 +69,20 @@ jobs:
           persist-credentials: false
       - name: Detect Rust project
         id: guard
+        env:
+          RUST_INPUT: ${{ inputs.rust }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$RUST_INPUT" = "false" ] || [ "$REPO" = "Quantova/Quantova-Ci" ]; then
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+          elif [ -f Cargo.toml ]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$(git ls-files '*Cargo.toml')" ]; then
+            echo "this repository has crates but no root Cargo.toml, so nothing would be built or tested; add a root workspace or pass rust: false" >&2
+            exit 1
+          else
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         if: steps.guard.outputs.rust == 'true'
         with:
