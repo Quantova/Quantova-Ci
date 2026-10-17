@@ -40,7 +40,7 @@ No repository merges while these are red.
 
 ### Binary symbol scan
 
-Layer two catches what a dependency scan cannot see, classical code that was vendored or hand written into the crate itself. The release gate builds the release binaries and runs `scripts/symbol-scan.sh`, which reads the strings of every executable and fails on a classical crypto signature, curve names like secp256k1 and curve25519, pairing names like bls12 and bn254, and the low level markers EC_POINT, BN_mod_exp, and RSA_. A binary that carries any of them does not ship.
+Layer two catches what a dependency scan cannot see, classical code that was vendored or hand written into the crate itself. The release gate builds the release binaries and runs `scripts/symbol-scan.sh`, which reads the strings of every executable and fails on a classical crypto signature, curve names like secp256k1 and curve25519, pairing names like bls12 and bn254, and the low level markers EC_POINT, BN_mod_exp, and RSA_. A binary that carries any of them does not ship. The scan reads the executables in the release target directory only, so library crates, the cdylib bindings and wasm builds, which produce no executable, are not scanned by it.
 
 ### Cross repo pin agreement
 
@@ -48,7 +48,7 @@ A tag and a running build must never disagree. For every cross repo git dependen
 
 ### Fuzz gate
 
-An Airlock submission arrives from a foreign chain, a Q-Oracle report arrives from off chain, and both cross a trust boundary an ordinary test suite does not probe. A fuzz target for each parser is held to two properties against random and mutated input, it never panics, and it rejects every artifact that does not open with its own Quantova header. `fixtures/fuzz/bridge-message-parsers` is the pattern a fuzz target follows, and `docs/fuzz.md` records how a repository adopts the gate. Two more fixtures, `dirty-accepts-foreign` and `dirty-panics`, each carry one deliberately broken parser and a committed regression input, and `scripts/fuzz-selftest.sh`, wired into the shared pipeline as the `fuzz-selftest` job, proves the gate turns red on both before it is trusted to pass a clean parser.
+An Airlock submission arrives from a foreign chain, a Q-Oracle report arrives from off chain, and both cross a trust boundary an ordinary test suite does not probe. A fuzz target for each parser is held to two properties against random and mutated input, it never panics, and it rejects every artifact that does not open with its own Quantova header. `fixtures/fuzz/bridge-message-parsers` is the pattern a fuzz target follows, and `docs/fuzz.md` records how a repository adopts the gate. Two more fixtures, `dirty-accepts-foreign` and `dirty-panics`, each carry one deliberately broken parser and a committed regression input, and `scripts/fuzz-selftest.sh`, wired into the shared pipeline as the `fuzz-selftest` job, proves the gate turns red on both before it is trusted to pass a clean parser. A repository with no fuzz target passes the gate, so a parser is covered only once its repository commits a target.
 
 ### Coverage gate
 
@@ -63,7 +63,7 @@ Two scanners run over the tracked files of every repository.
 
 ### Standing lint policy
 
-`lints.toml` records the organization wide Rust and Clippy policy that repositories inherit. Unsafe code is denied, the Clippy lint set is denied as warnings, and floating point arithmetic is denied on the consensus, gas, and state paths where determinism is load bearing.
+`lints.toml` records the organization wide Rust and Clippy policy. Unsafe code is denied, the Clippy lint set is denied as warnings, and floating point arithmetic is denied on the consensus, gas, and state paths where determinism is load bearing. The file is a reference and is not yet wired into any repository. Each repository enforces its own `[lints]` table and `forbid(unsafe_code)` attributes, and the shared pipeline enforces Clippy warnings as errors.
 
 ### Action pins
 
