@@ -11,7 +11,7 @@ A repository wires the reusable pipeline in a few lines.
 ```yaml
 jobs:
   ci:
-    uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
+    uses: Quantova/Quantova-Ci/.github/workflows/rust-ci.yml@3eedb4e772007f2c5a301a2e2c9cc013481e369c
 ```
 
 A repository that ships a binary also imports the release gate.
@@ -19,7 +19,7 @@ A repository that ships a binary also imports the release gate.
 ```yaml
 jobs:
   release:
-    uses: Quantova/Quantova-Ci/.github/workflows/release.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
+    uses: Quantova/Quantova-Ci/.github/workflows/release.yml@3eedb4e772007f2c5a301a2e2c9cc013481e369c
 ```
 
 The repository that implements the bridge Airlock and the repository that implements the Q-Oracle message parser also import the fuzz gate.
@@ -27,7 +27,7 @@ The repository that implements the bridge Airlock and the repository that implem
 ```yaml
 jobs:
   fuzz:
-    uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@ae5cdb805b87d0d09a4e23ca17ebaf6599f59530
+    uses: Quantova/Quantova-Ci/.github/workflows/fuzz.yml@3eedb4e772007f2c5a301a2e2c9cc013481e369c
 ```
 
 No repository merges while these are red.

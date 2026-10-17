@@ -6,39 +6,39 @@ Each line carries the exact version the consumer beneath it pins of the reposito
 
 ```mermaid
 graph TD
-    QCRYPTO["Q-Crypto<br/>rev 4c0bdcb, immutable"]
-    QVM["QVM<br/>v0.5.3"]
-    QRC["QRC-CONSENSUS<br/>v0.9.0"]
+    QCRYPTO["Q-Crypto<br/>rev 12fefda, immutable"]
+    QVM["QVM<br/>rev 4979bda"]
+    QRC["QRC-CONSENSUS<br/>rev a987564"]
     QVRF["QVRF<br/>consumer"]
-    QPROVER["q-prover<br/>v0.8.0, leaf"]
+    QPROVER["q-prover<br/>rev 07f53be, leaf"]
     QCOREJS["QCore.js<br/>consumer"]
     QCORERS["QCore.rs<br/>consumer"]
     QUANTA["Quanta-Smart-Contract-language<br/>consumer"]
-    CHAIN["Quantova-Chain<br/>v0.10.0, integration point"]
+    CHAIN["Quantova-Chain<br/>rev 5287d18, integration point"]
     BENCH["Quantova-Bench<br/>leaf, pins the whole set"]
     CONF["Quantova-Conformance<br/>consumer"]
-    ORACLE["Q-Oracle<br/>v0.1.0, airlock leaf"]
+    ORACLE["Q-Oracle<br/>airlock leaf"]
 
-    QCRYPTO -->|rev 4c0bdcb| QVM
-    QCRYPTO -->|rev 4c0bdcb| QRC
-    QCRYPTO -->|rev 4c0bdcb| QVRF
-    QCRYPTO -->|rev 4c0bdcb| QPROVER
-    QCRYPTO -->|rev 4c0bdcb| QCOREJS
-    QCRYPTO -->|rev 4c0bdcb| QCORERS
-    QCRYPTO -->|rev 4c0bdcb| QUANTA
-    QCRYPTO -->|rev 4c0bdcb| CHAIN
-    QCRYPTO -->|rev 4c0bdcb| BENCH
+    QCRYPTO -->|rev 12fefda| QVM
+    QCRYPTO -->|rev 12fefda| QRC
+    QCRYPTO -->|rev 12fefda| QVRF
+    QCRYPTO -->|rev 12fefda| QPROVER
+    QCRYPTO -->|rev 12fefda| QCOREJS
+    QCRYPTO -->|rev 12fefda| QCORERS
+    QCRYPTO -->|rev 12fefda| QUANTA
+    QCRYPTO -->|rev 12fefda| CHAIN
+    QCRYPTO -->|rev 12fefda| BENCH
     QCRYPTO -.->|local path| ORACLE
 
-    QVM -->|v0.5.3| QUANTA
-    QVM -->|v0.5.3| CHAIN
-    QVM -->|v0.5.3| BENCH
+    QVM -->|rev 4979bda| QUANTA
+    QVM -->|rev 4979bda| CHAIN
+    QVM -->|rev 4979bda| BENCH
 
-    QRC -->|v0.9.0| CHAIN
-    QRC -->|v0.9.0| BENCH
+    QRC -->|rev a987564| CHAIN
+    QRC -->|rev a987564| BENCH
 
-    CHAIN -->|v0.10.0| BENCH
-    CHAIN -->|v0.10.0| CONF
+    CHAIN -->|rev 5287d18| BENCH
+    CHAIN -->|rev 5287d18| CONF
 
     classDef root fill:#0b3d2e,stroke:#0b3d2e,color:#ffffff
     classDef integ fill:#1f4e79,stroke:#1f4e79,color:#ffffff
@@ -52,18 +52,18 @@ graph TD
 
 ## What each pinned repository is and why others pin that exact version
 
-Q-Crypto is the root of trust, the code that produces every signature and every hash in the stack. It is pinned by an immutable git commit, the revision 4c0bdcb7dce9d2de6f9f510b0695377321076fef, and never by a tag. A tag is a friendly name that a maintainer can later move to point at different code, while a commit revision can never change once it exists. Because every other repository has to resolve the exact same cryptography, the one edge that is never allowed to drift is nailed to a commit that cannot be moved.
+Q-Crypto is the root of trust, the code that produces every signature and every hash in the stack. It is pinned by an immutable git commit, the revision 12fefda211c5b7f8a8e9ed60e6a35d880da54c38, and never by a tag. A tag is a friendly name that a maintainer can later move to point at different code, while a commit revision can never change once it exists. Because every other repository has to resolve the exact same cryptography, the one edge that is never allowed to drift is nailed to a commit that cannot be moved.
 
-QVM publishes v0.5.3, the secured virtual machine that runs contract code inside the chain. The contract language and the node both build against this exact version so that the bytecode the language emits and the bytecode the node executes are always the same machine.
+QVM is the secured virtual machine that runs contract code inside the chain. The node pins commit 4979bda. The contract language and the client SDKs pin commit f7d82ab, which carries the same instruction set and the same order signing context, so the bytecode the language emits and the bytecode the node executes are the same machine.
 
-QRC-CONSENSUS publishes v0.9.0, the QORUS committee consensus that decides which blocks become final. The node pins this exact version so that every validator agrees on the same voting and attestation rules, including the chain identifier that is folded into every attestation.
+QRC-CONSENSUS is the QORUS committee consensus that decides which blocks become final. The node pins commit a987564 so that every validator agrees on the same voting and attestation rules, including the chain identifier that is folded into every attestation.
 
-Quantova-Chain publishes v0.10.0, the node and the ledger, the piece that brings the cryptography, the virtual machine, and the consensus together into one running program. It is the integration point, so the benchmark suite and the conformance runner both pin this exact version and measure and test the real node rather than a loose collection of parts.
+Quantova-Chain is the node and the ledger, the piece that brings the cryptography, the virtual machine, and the consensus together into one running program. It is the integration point, so the benchmark suite and the conformance runner both pin a commit of it and measure and test the real node rather than a loose collection of parts.
 
-q-prover publishes v0.8.0, the hash based STARK prover. It is a leaf, which means it pins the cryptography root but nothing in the core stack pins it back, so it can move forward on its own cadence without forcing the rest of the stack to rebuild.
+q-prover is the hash based STARK prover. It is a leaf, which means it pins the cryptography root but nothing in the core stack pins it back, so it can move forward on its own cadence without forcing the rest of the stack to rebuild.
 
-Q-Oracle publishes v0.1.0, its first tag, and is the airlock, the component that reads and verifies foreign chains before their messages are allowed in. It is a leaf that nothing in the stack depends on, so its version is a marker of its own progress rather than a pin anything else has to resolve, and it still reaches the cryptography root through a local path on disk rather than the shared commit while it is being built out.
+Q-Oracle is the airlock, the component that reads and verifies foreign chains before their messages are allowed in. It is a leaf that nothing in the stack depends on, so nothing else has to resolve it, and it reaches the cryptography root through the same pinned commit as the rest of the stack.
 
 ## How the gate holds the map together
 
-A consumer pins the exact tag of everything beneath it in the dependency stack, so the benchmark suite carries the versions of the chain, the consensus, the virtual machine, and the cryptography all at once. The pin agreement gate then proves that the declared tag in the manifest, the commit recorded in the committed lockfile, and the peeled tag on the remote all point at the same code, which is what stops any one of these pins from quietly drifting away from the others.
+A consumer pins the exact commit of everything beneath it in the dependency stack, through git rev sources in its manifests and the committed lockfile, and every shared job builds with --locked so no dependency resolves fresh. The pin agreement gate in this repository checks tag sources. Commit pins are checked by the cross repo pins step in the QCore.rs, QCore.js, QCore.py and quantova-cli workflows, which fails when a locked Q-Crypto, Quantova-Chain or QVM revision differs from the pins file.
