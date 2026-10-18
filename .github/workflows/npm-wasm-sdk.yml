@@ -177,7 +177,11 @@ jobs:
         run: |
           set -euo pipefail
           npm audit --omit=dev --audit-level=high
-          npm audit signatures
+          if node -e "const l = require('./package-lock.json'); process.exit(Object.keys(l.packages || {}).some((k) => k !== '') ? 0 : 1)"; then
+            npm audit signatures
+          else
+            echo "the package has no installed dependencies, so there are no registry signatures to check"
+          fi
       - name: Lint
         run: npm run lint --if-present
       - name: Test
