@@ -1,18 +1,17 @@
 # Cross repo pin map
 
-This map is read from the committed `Cargo.lock` and `Cargo.toml` of each repository in the stack, not from release notes. Every edge carries the commit the consumer beneath it resolves for the repository above it, as cargo recorded it in the lockfile, or the word path where the consumer builds a sibling checkout through a path dependency. Q-Crypto sits at the root because every repository signs and hashes through it. Two lines of the stack exist side by side. The node line is Quantova-Chain at its deploy head with QVM 4979bda and QRC-CONSENSUS a987564. The client line is Quantova-Chain 3ed5777 with QVM f7d82ab and QRC-CONSENSUS 96370ae, which is the set Quantova-Chain itself pinned at 3ed5777, and the SDKs, the CLI, the benchmark and the conformance runner build against it.
+This map is read from the committed `Cargo.lock` and `Cargo.toml` of each repository in the stack, not from release notes. Every edge carries the commit the consumer beneath it resolves for the repository above it, as cargo recorded it in the lockfile, or the word path where the consumer builds a sibling checkout through a path dependency. Q-Crypto sits at the root because every repository signs and hashes through it. The stack runs on one line. The node, the SDKs, the CLI, the benchmark, the contract language and the conformance runner all resolve the same Q-Crypto, QVM, QRC-CONSENSUS and Quantova-Chain commits.
 
 ```mermaid
 graph TD
-    QCRYPTO["Q-Crypto<br/>12fefda"]
-    QVM["QVM"]
-    QRC["QRC-CONSENSUS"]
-    QPROVER["q-prover"]
-    QVRF["QVRF"]
-    CHAIN["Quantova-Chain<br/>node line at deploy head"]
-    CHAINC["Quantova-Chain 3ed5777<br/>client line"]
+    QCRYPTO["Q-Crypto<br/>46f7077"]
+    QVM["QVM<br/>bf20712"]
+    QRC["QRC-CONSENSUS<br/>fe6d36c"]
+    QPROVER["q-prover<br/>ef1747f"]
+    QLC["Q-Lightclient<br/>7f2259a"]
+    CHAIN["Quantova-Chain<br/>fca2d70"]
     QUANTA["Quanta-Smart-Contract-language"]
-    QCORERS["QCore.rs"]
+    QCORERS["QCore.rs<br/>79b616a"]
     QCOREJS["QCore.js"]
     QCOREPY["QCore.py"]
     CLI["quantova-cli"]
@@ -20,41 +19,40 @@ graph TD
     CONF["Quantova-Conformance"]
     ORACLE["Q-Oracle"]
 
-    QCRYPTO -->|12fefda| QVM
-    QCRYPTO -->|12fefda| QRC
-    QCRYPTO -->|12fefda| QPROVER
-    QCRYPTO -->|12fefda| QVRF
-    QCRYPTO -->|12fefda| CHAIN
-    QCRYPTO -->|12fefda| QUANTA
-    QCRYPTO -->|12fefda| QCORERS
-    QCRYPTO -->|12fefda| QCOREJS
-    QCRYPTO -->|12fefda| QCOREPY
-    QCRYPTO -->|12fefda| CLI
-    QCRYPTO -->|12fefda| BENCH
-    QCRYPTO -->|12fefda| CONF
-    QCRYPTO -->|12fefda| ORACLE
+    QCRYPTO -->|46f7077| QVM
+    QCRYPTO -->|46f7077| QRC
+    QCRYPTO -->|46f7077| QPROVER
+    QCRYPTO -->|46f7077| CHAIN
+    QCRYPTO -->|46f7077| QUANTA
+    QCRYPTO -->|46f7077| QCORERS
+    QCRYPTO -->|46f7077| QCOREJS
+    QCRYPTO -->|46f7077| QCOREPY
+    QCRYPTO -->|46f7077| CLI
+    QCRYPTO -->|46f7077| BENCH
+    QCRYPTO -->|46f7077| CONF
+    QCRYPTO -->|46f7077| ORACLE
 
-    QVM -->|4979bda| CHAIN
-    QRC -->|a987564| CHAIN
+    QVM -->|bf20712| CHAIN
+    QVM -->|bf20712| QUANTA
+    QVM -->|bf20712| QCORERS
+    QVM -->|bf20712| QCOREJS
+    QVM -->|bf20712| QCOREPY
+    QVM -->|bf20712| CLI
+    QVM -->|bf20712| BENCH
 
-    QVM -->|f7d82ab| QUANTA
-    QVM -->|f7d82ab| QCORERS
-    QVM -->|f7d82ab| QCOREJS
-    QVM -->|f7d82ab| QCOREPY
-    QVM -->|f7d82ab| CLI
-    QVM -->|f7d82ab| BENCH
-    QRC -->|96370ae| BENCH
+    QRC -->|fe6d36c| CHAIN
+    QRC -->|fe6d36c| QCORERS
+    QRC -->|fe6d36c| QCOREJS
+    QRC -->|fe6d36c| QCOREPY
+    QRC -->|fe6d36c| CLI
+    QRC -->|fe6d36c| BENCH
 
-    CHAINC -->|3ed5777| QCORERS
-    CHAINC -->|3ed5777| QCOREJS
-    CHAINC -->|3ed5777| QCOREPY
-    CHAINC -->|3ed5777| CLI
-    CHAINC -->|3ed5777| BENCH
-    CHAINC -->|3ed5777| CONF
-
-    QPROVER -->|bddf924| QVRF
-    QPROVER -->|bddf924| BENCH
-    QVRF -->|7734070| BENCH
+    CHAIN -->|fca2d70| QCORERS
+    CHAIN -->|fca2d70| QCOREJS
+    CHAIN -->|fca2d70| QCOREPY
+    CHAIN -->|fca2d70| CLI
+    CHAIN -->|fca2d70| BENCH
+    CHAIN -->|fca2d70| CONF
 
     QCORERS -.->|path| QCOREJS
     QCORERS -.->|path| QCOREPY
@@ -62,32 +60,33 @@ graph TD
     QRC -.->|path| ORACLE
     CHAIN -.->|path| ORACLE
     QPROVER -.->|path| ORACLE
+    QLC -.->|path| ORACLE
 
     classDef root fill:#0b3d2e,stroke:#0b3d2e,color:#ffffff
     classDef integ fill:#1f4e79,stroke:#1f4e79,color:#ffffff
     classDef leaf fill:#6b3fa0,stroke:#6b3fa0,color:#ffffff
     classDef airlock fill:#8a5a00,stroke:#8a5a00,color:#ffffff
     class QCRYPTO root
-    class CHAIN,CHAINC integ
+    class CHAIN integ
     class BENCH,CONF leaf
     class ORACLE airlock
 ```
 
 ## The pins in use
 
-Q-Crypto is resolved at 12fefda211c5b7f8a8e9ed60e6a35d880da54c38 by every lockfile in the map, and no lockfile carries a second Q-Crypto commit.
+Q-Crypto is resolved at 46f70778a505a495adb3a1805620802b380ce465 by every lockfile in the map, and no lockfile carries a second Q-Crypto commit.
 
-QVM is resolved at 4979bda62d1cf34a56ac7a523262eaa49d130140 by the node, and at f7d82abb13a01039d78dca732660fd6700d7b830 by the contract language, the three QCore packages, the CLI and the benchmark.
+QVM is resolved at bf2071260666bbf6779edb7f150d1e7cb2c2491b by the node, the contract language, the three QCore packages, the CLI and the benchmark.
 
-QRC-CONSENSUS is resolved at a987564d226037613a8d30022c343dab2dc07a34 by the node, and at 96370aeb7bb23e04ee177d3945659e5d53fdf09f by the benchmark, which is the commit Quantova-Chain 3ed5777 pins.
+QRC-CONSENSUS is resolved at fe6d36c335f985358df3eba0774f4094ec2d9c31 by the node, the three QCore packages, the CLI and the benchmark.
 
-Quantova-Chain is resolved at 3ed57775e1171f870e0236d8d605e07b6dc03761 by the three QCore packages, the CLI, the benchmark and the conformance runner.
+Quantova-Chain is resolved at fca2d70dcd5c20a44bd1261dfb02faacba3bfcdd by the three QCore packages, the CLI, the benchmark and the conformance runner.
 
-q-prover is resolved at bddf924e8e702bf72fd905b66558452c26520831 by QVRF, and the benchmark reaches it through QVRF 7734070198ca09892b90ca8eaf2221243bbe3949.
+QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit 79b616a2e43c3d82b16d44d6b359dc495d1c8416 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
 
-QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit it is built against in its `cross-repo-pins` file, and its workflows check that commit out beside it.
+Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS fe6d36c335f985358df3eba0774f4094ec2d9c31, Quantova-Chain fca2d70dcd5c20a44bd1261dfb02faacba3bfcdd and q-prover ef1747f8d3188049ffd4728c8a62721fa0882193, so those edges are pinned by the workflow and not by a lockfile.
 
-Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts and carries no `cross-repo-pins` file, so those edges are not pinned by any lockfile.
+QVRF is not built by any repository in the map.
 
 ## How the gate holds the map together
 
