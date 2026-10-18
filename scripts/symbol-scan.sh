@@ -7,12 +7,13 @@ set -euo pipefail
 bash -s -- "${1:-target/release}" <<'SH'
 set -euo pipefail
 dir="$1"
-patterns='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254|EC_POINT|BN_mod_exp|RSA_'
+names='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254'
+symbols='EC_POINT|BN_mod_exp|RSA_|3rsa[0-9A-Z_]'
 fail=0
 count=0
 while IFS= read -r -d '' artifact; do
   count=$((count + 1))
-  if strings -a "$artifact" | grep -Eiq "$patterns"; then
+  if strings -a "$artifact" | grep -Eiq "$names" || strings -a "$artifact" | grep -Eq "$symbols"; then
     echo "::error file=$artifact::classical-crypto symbol signature detected in $artifact" >&2
     fail=1
   fi
