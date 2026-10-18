@@ -157,6 +157,8 @@ if not os.path.isfile(pins_path):
     tagged = sorted({e["repo"] for e in lock_sources if e["tag"]})
     if tagged:
         fail("%s has tag pinned cross repo git dependencies (%s) but no %s" % (lock_path, ", ".join(tagged), pins_path))
+    for manifest, value, key in external_paths:
+        fail("%s: path dependency %s leaves the repository but there is no %s to pin %s" % (manifest, value, pins_path, key))
     sys.exit(1 if failures else 0)
 
 declared = []
