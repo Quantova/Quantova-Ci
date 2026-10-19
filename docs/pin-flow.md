@@ -11,7 +11,7 @@ graph TD
     QLC["Q-Lightclient<br/>7f2259a"]
     CHAIN["Quantova-Chain<br/>fca2d70"]
     QUANTA["Quanta-Smart-Contract-language"]
-    QCORERS["QCore.rs<br/>79b616a"]
+    QCORERS["QCore.rs<br/>d2112c8"]
     QCOREJS["QCore.js"]
     QCOREPY["QCore.py"]
     CLI["quantova-cli"]
@@ -82,7 +82,7 @@ QRC-CONSENSUS is resolved at fe6d36c335f985358df3eba0774f4094ec2d9c31 by the nod
 
 Quantova-Chain is resolved at fca2d70dcd5c20a44bd1261dfb02faacba3bfcdd by the three QCore packages, the CLI, the benchmark and the conformance runner.
 
-QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit 79b616a2e43c3d82b16d44d6b359dc495d1c8416 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
+QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit d2112c88b6b31d84f0d27d122b9b38dfd561eabb in its `cross-repo-pins` file, and its workflows check that commit out beside it.
 
 Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS fe6d36c335f985358df3eba0774f4094ec2d9c31, Quantova-Chain fca2d70dcd5c20a44bd1261dfb02faacba3bfcdd and q-prover ef1747f8d3188049ffd4728c8a62721fa0882193, so those edges are pinned by the workflow and not by a lockfile.
 
