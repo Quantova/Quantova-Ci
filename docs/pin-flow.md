@@ -74,17 +74,17 @@ graph TD
 
 ## The pins in use
 
-Q-Crypto is resolved at 46f70778a505a495adb3a1805620802b380ce465 by every lockfile in the map, and no lockfile carries a second Q-Crypto commit.
+Q-Crypto is resolved at 4e37c52984740f345f96e2c8536803bce5f3b805 by every lockfile in the map, and no lockfile carries a second Q-Crypto commit.
 
-QVM is resolved at bf2071260666bbf6779edb7f150d1e7cb2c2491b by the node, the contract language, the three QCore packages, the CLI and the benchmark.
+QVM is resolved at 94fe7e8a1758deca56910f2a5c634622345404ef by the node, the contract language, the three QCore packages, the CLI and the benchmark.
 
-QRC-CONSENSUS is resolved at fe6d36c335f985358df3eba0774f4094ec2d9c31 by the node, the three QCore packages, the CLI and the benchmark.
+QRC-CONSENSUS is resolved at 8e998f97b5df74f8181c69ea980c0aaa1c120e2c by the node, the three QCore packages, the CLI and the benchmark.
 
-Quantova-Chain is resolved at 10d52af9de5de215a6e5359f36d5358d79a966cc by the three QCore packages, the CLI, the benchmark and the conformance runner.
+Quantova-Chain is resolved at 14b1da3412e1af7eb41e4c58918eabca815dce18 by the three QCore packages, the CLI, the benchmark and the conformance runner.
 
-QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit fb1279f7a5d168c005ec9025157570cebacd0d71 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
+QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit 90cbf96c4575393197422ca63f0e0ea307a97605 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
 
-Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS fe6d36c335f985358df3eba0774f4094ec2d9c31, Quantova-Chain 10d52af9de5de215a6e5359f36d5358d79a966cc and q-prover ef1747f8d3188049ffd4728c8a62721fa0882193, together with QCore.rs fb1279f7a5d168c005ec9025157570cebacd0d71 and QVM bf2071260666bbf6779edb7f150d1e7cb2c2491b for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
+Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS 8e998f97b5df74f8181c69ea980c0aaa1c120e2c, Quantova-Chain 14b1da3412e1af7eb41e4c58918eabca815dce18 and q-prover c56ce780ce3e20889fb3fab94c7dadc998809de3, together with QCore.rs 90cbf96c4575393197422ca63f0e0ea307a97605 and QVM 94fe7e8a1758deca56910f2a5c634622345404ef for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
 
 QVRF is not built by any repository in the map.
 
