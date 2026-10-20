@@ -11,7 +11,7 @@ graph TD
     QLC["Q-Lightclient<br/>7f2259a"]
     CHAIN["Quantova-Chain<br/>10d52af"]
     QUANTA["Quanta-Smart-Contract-language"]
-    QCORERS["QCore.rs<br/>d1358f7"]
+    QCORERS["QCore.rs<br/>fb1279f"]
     QCOREJS["QCore.js"]
     QCOREPY["QCore.py"]
     CLI["quantova-cli"]
@@ -82,9 +82,9 @@ QRC-CONSENSUS is resolved at fe6d36c335f985358df3eba0774f4094ec2d9c31 by the nod
 
 Quantova-Chain is resolved at 10d52af9de5de215a6e5359f36d5358d79a966cc by the three QCore packages, the CLI, the benchmark and the conformance runner.
 
-QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit d1358f7d09b2ec2e7db0e358844e6066a32c9942 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
+QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit fb1279f7a5d168c005ec9025157570cebacd0d71 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
 
-Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS fe6d36c335f985358df3eba0774f4094ec2d9c31, Quantova-Chain 10d52af9de5de215a6e5359f36d5358d79a966cc and q-prover ef1747f8d3188049ffd4728c8a62721fa0882193, together with QCore.rs d1358f7d09b2ec2e7db0e358844e6066a32c9942 and QVM bf2071260666bbf6779edb7f150d1e7cb2c2491b for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
+Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS fe6d36c335f985358df3eba0774f4094ec2d9c31, Quantova-Chain 10d52af9de5de215a6e5359f36d5358d79a966cc and q-prover ef1747f8d3188049ffd4728c8a62721fa0882193, together with QCore.rs fb1279f7a5d168c005ec9025157570cebacd0d71 and QVM bf2071260666bbf6779edb7f150d1e7cb2c2491b for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
 
 QVRF is not built by any repository in the map.
 
