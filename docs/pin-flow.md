@@ -4,14 +4,14 @@ This map is read from the committed `Cargo.lock` and `Cargo.toml` of each reposi
 
 ```mermaid
 graph TD
-    QCRYPTO["Q-Crypto<br/>46f7077"]
-    QVM["QVM<br/>bf20712"]
-    QRC["QRC-CONSENSUS<br/>fe6d36c"]
-    QPROVER["q-prover<br/>ef1747f"]
+    QCRYPTO["Q-Crypto<br/>4e37c52"]
+    QVM["QVM<br/>94fe7e8"]
+    QRC["QRC-CONSENSUS<br/>8e998f9"]
+    QPROVER["q-prover<br/>c56ce78"]
     QLC["Q-Lightclient<br/>7f2259a"]
-    CHAIN["Quantova-Chain<br/>10d52af"]
+    CHAIN["Quantova-Chain<br/>f183c25"]
     QUANTA["Quanta-Smart-Contract-language"]
-    QCORERS["QCore.rs<br/>fb1279f"]
+    QCORERS["QCore.rs<br/>a845316"]
     QCOREJS["QCore.js"]
     QCOREPY["QCore.py"]
     CLI["quantova-cli"]
@@ -80,11 +80,11 @@ QVM is resolved at 94fe7e8a1758deca56910f2a5c634622345404ef by the node, the con
 
 QRC-CONSENSUS is resolved at 8e998f97b5df74f8181c69ea980c0aaa1c120e2c by the node, the three QCore packages, the CLI and the benchmark.
 
-Quantova-Chain is resolved at 14b1da3412e1af7eb41e4c58918eabca815dce18 by the three QCore packages, the CLI, the benchmark and the conformance runner.
+Quantova-Chain is resolved at f183c25c2a56e8ab93758c7552d5c29328942c08 by the three QCore packages, the CLI, the benchmark and the conformance runner.
 
-QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit 90cbf96c4575393197422ca63f0e0ea307a97605 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
+QCore.rs is a path dependency of QCore.js, QCore.py and quantova-cli. Path dependencies leave no commit in a lockfile, so each of those repositories declares the QCore.rs commit a8453162c84be24921315ef3b5c50c14e320a079 in its `cross-repo-pins` file, and its workflows check that commit out beside it.
 
-Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS 8e998f97b5df74f8181c69ea980c0aaa1c120e2c, Quantova-Chain 14b1da3412e1af7eb41e4c58918eabca815dce18 and q-prover c56ce780ce3e20889fb3fab94c7dadc998809de3, together with QCore.rs 90cbf96c4575393197422ca63f0e0ea307a97605 and QVM 94fe7e8a1758deca56910f2a5c634622345404ef for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
+Q-Oracle builds Q-Lightclient, QRC-CONSENSUS, Quantova-Chain and q-prover crates through path dependencies on sibling checkouts. Its workflow checks out Q-Lightclient 7f2259a2e03594689a4132c7ecc07a85b347312d, QRC-CONSENSUS 8e998f97b5df74f8181c69ea980c0aaa1c120e2c, Quantova-Chain f183c25c2a56e8ab93758c7552d5c29328942c08 and q-prover c56ce780ce3e20889fb3fab94c7dadc998809de3, together with QCore.rs a8453162c84be24921315ef3b5c50c14e320a079 and QVM 94fe7e8a1758deca56910f2a5c634622345404ef for the sibling crates those reach, so those edges are pinned by the workflow and not by a lockfile.
 
 QVRF is not built by any repository in the map.
 
