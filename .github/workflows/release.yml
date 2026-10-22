@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: stable
+          toolchain: 1.98.0
       - name: Build release
         run: cargo build --locked --release --all-features
       - name: Classical-crypto symbol scan
@@ -28,7 +28,7 @@ jobs:
           bash -s -- target/release <<'SH'
           set -euo pipefail
           dir="$1"
-          names='secp256k1|curve25519|ristretto|ed25519|ecdsa|bls12|bn254'
+          names='secp256k1|secp256r1|secp384r1|curve25519|x25519|ristretto|ed25519|ed448|x448|ecdsa|p256|p384|p521|k256|nistp|bls12|bn254'
           symbols='EC_POINT|BN_mod_exp|RSA_|3rsa[0-9A-Z_]'
           fail=0
           count=0
@@ -40,6 +40,7 @@ jobs:
             fi
           done < <(
             find "$dir" -maxdepth 1 -type f \( -perm -u+x -o -name 'lib*.rlib' -o -name '*.so' -o -name '*.dylib' -o -name '*.a' -o -name '*.wasm' \) -print0 2>/dev/null
+            find "$dir/deps" -maxdepth 1 -type f -name 'lib*.rlib' -print0 2>/dev/null
             find "$(dirname "$dir")" -mindepth 3 -maxdepth 3 -type f -path "$(dirname "$dir")/*/release/*.wasm" -print0 2>/dev/null
           )
           if [ "$count" = "0" ]; then
@@ -199,7 +200,7 @@ jobs:
               except OSError:
                   continue
               for value in declared_paths(text):
-                  target = os.path.normpath(os.path.join(os.path.dirname(full), value))
+                  target = os.path.realpath(os.path.join(os.path.dirname(full), value))
                   rel = os.path.relpath(target, root_abs)
                   parts = rel.replace(os.sep, "/").split("/")
                   if parts[0] != "..":
@@ -238,6 +239,10 @@ jobs:
           for manifest, value, key in external_paths:
               if key not in seen:
                   fail("%s: path dependency %s leaves the repository and %s is not declared in %s" % (manifest, value, key, pins_path))
+
+          for repo in sorted({e["repo"] for e in lock_sources if e["tag"]}):
+              if repo not in seen:
+                  fail("%s: tag pinned git source is not declared in %s" % (repo, pins_path))
 
           if not declared:
               sys.exit(1 if failures else 0)

@@ -144,7 +144,7 @@ for manifest in manifest_paths():
     except OSError:
         continue
     for value in declared_paths(text):
-        target = os.path.normpath(os.path.join(os.path.dirname(full), value))
+        target = os.path.realpath(os.path.join(os.path.dirname(full), value))
         rel = os.path.relpath(target, root_abs)
         parts = rel.replace(os.sep, "/").split("/")
         if parts[0] != "..":
@@ -183,6 +183,10 @@ with open(pins_path, encoding="utf-8") as fh:
 for manifest, value, key in external_paths:
     if key not in seen:
         fail("%s: path dependency %s leaves the repository and %s is not declared in %s" % (manifest, value, key, pins_path))
+
+for repo in sorted({e["repo"] for e in lock_sources if e["tag"]}):
+    if repo not in seen:
+        fail("%s: tag pinned git source is not declared in %s" % (repo, pins_path))
 
 if not declared:
     sys.exit(1 if failures else 0)

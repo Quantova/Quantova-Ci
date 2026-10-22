@@ -178,6 +178,10 @@ jobs:
         run: |
           set -euo pipefail
           npm audit --omit=dev --audit-level=high
+          if ! node -e "const l = require('./package-lock.json'); process.exit(l.lockfileVersion >= 2 ? 0 : 1)"; then
+            echo "::error::package-lock.json is lockfile version 1, regenerate it with npm 7 or later so registry signatures can be checked" >&2
+            exit 1
+          fi
           if node -e "const l = require('./package-lock.json'); process.exit(Object.keys(l.packages || {}).some((k) => k !== '') ? 0 : 1)"; then
             npm audit signatures
           else
@@ -302,9 +306,26 @@ jobs:
           name="$(node -p "require('./package.json').name")"
           version="$(node -p "require('./package.json').version")"
           for attempt in $(seq 1 40); do
-            if npm view "$name@$version" dist.attestations.provenance.predicateType --prefer-online 2>/dev/null | grep -q slsa.dev/provenance; then
-              echo "$name@$version carries provenance"
-              exit 0
+            url="$(npm view "$name@$version" dist.attestations.url --prefer-online 2>/dev/null || true)"
+            if [ -n "$url" ] && curl -sSfL --retry 3 "$url" -o "$RUNNER_TEMP/attestations.json"; then
+              if EXPECTED="$GITHUB_SHA" node -e "
+                const all = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).attestations || [];
+                const want = process.env.EXPECTED.toLowerCase();
+                const ok = all.some((a) => {
+                  if (!String(a.predicateType || '').includes('slsa.dev/provenance')) return false;
+                  const env = a.bundle && a.bundle.dsseEnvelope;
+                  if (!env || !env.payload) return false;
+                  const stmt = JSON.parse(Buffer.from(env.payload, 'base64').toString('utf8'));
+                  const deps = (stmt.predicate && stmt.predicate.buildDefinition && stmt.predicate.buildDefinition.resolvedDependencies) || [];
+                  return deps.some((d) => d.digest && String(d.digest.gitCommit || '').toLowerCase() === want);
+                });
+                process.exit(ok ? 0 : 1);
+              " "$RUNNER_TEMP/attestations.json"; then
+                echo "$name@$version carries provenance for commit $GITHUB_SHA"
+                exit 0
+              fi
+              echo "::error::$name@$version carries provenance, but not for commit $GITHUB_SHA" >&2
+              exit 1
             fi
             sleep 15
           done
