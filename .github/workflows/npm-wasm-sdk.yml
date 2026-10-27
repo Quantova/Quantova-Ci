@@ -50,6 +50,9 @@ on:
         type: string
         required: false
         default: ""
+    secrets:
+      NPM_TOKEN:
+        required: false
 
 permissions:
   contents: read
