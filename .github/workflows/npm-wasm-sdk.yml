@@ -285,6 +285,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Publish with provenance
         shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           name="$(node -p "require('./package.json').name")"
